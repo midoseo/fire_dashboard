@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>전국 화재정보 대시보드</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root{
+    --bg:#fff7f2; --surface:#ffffff; --surface-1:#fff1ea;
+    --text-primary:#1a1310; --text-secondary:#6b5d55; --text-muted:#9a8b82;
+    --border:#f0e2d9; --accent:#2a78d6; --accent-bg:#e6f1fb; --accent-text:#0c447c;
+    --fire:#e8442a; --fire-2:#ff7a3c; --amber:#f5a623; --plum:#b5468a;
+    --fire-bg:#ffe9e2; --fire-text:#c2371f;
+    --google-bg:#eef3ea; --google-text:#3c6b2f;
+  }
+  * { box-sizing: border-box; }
+  body{
+    margin:0; padding:24px; background:var(--bg); color:var(--text-primary);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Malgun Gothic",sans-serif;
+    line-height:1.6;
+  }
+  .wrap{ max-width:960px; margin:0 auto; }
+  h1{ font-size:22px; font-weight:600; margin:0 0 4px; }
+  .subtitle{ font-size:13px; color:var(--text-muted); margin:0 0 28px; }
+
+  /* 상단 요약 배너 */
+  .hero{
+    border-radius:18px; padding:24px 26px; margin-bottom:28px; color:#fff;
+    background:linear-gradient(135deg,#ff8a4c 0%,#f0472a 52%,#d81f3c 100%);
+    box-shadow:0 12px 30px rgba(224,60,40,.22);
+  }
+  .hero-top{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+  .hero-top h1{ font-size:25px; font-weight:700; margin:0; color:#fff; letter-spacing:-.4px; }
+  .hero-time{ font-size:12px; color:rgba(255,255,255,.9); }
+  .hero-stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:14px; }
+  .hero-stat{ background:rgba(255,255,255,.17); border:1px solid rgba(255,255,255,.28); border-radius:13px; padding:14px 16px; }
+  .hs-label{ font-size:12px; color:rgba(255,255,255,.92); margin-bottom:7px; display:flex; align-items:center; gap:6px; }
+  .hs-value{ font-size:27px; font-weight:700; line-height:1.05; }
+  .hs-unit{ font-size:13px; font-weight:500; opacity:.85; margin-left:2px; }
+
+  .section-label{ font-size:13px; color:var(--text-secondary); margin:0 0 10px; font-weight:600; display:flex; align-items:center; gap:7px; }
+  .section-label::before{ content:''; width:8px; height:8px; border-radius:50%; background:var(--fire); flex:none; }
+  .section-head{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin:0 0 8px; flex-wrap:wrap; }
+  .section-head .section-label{ margin:0; }
+  .news-count{ font-size:12px; color:var(--text-muted); white-space:nowrap; }
+  .card-panel{
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    overflow:hidden; margin-bottom:28px;
+  }
+  /* 실시간 화재정보: 좌측 리스트 / 우측 지도 2단 */
+  .map-section{
+    display:grid; grid-template-columns:340px 1fr; gap:16px; margin-bottom:28px;
+    align-items:stretch;
+  }
+  .live-list{
+    max-height:520px; overflow-y:auto;
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  }
+  #map{
+    height:520px; border:1px solid var(--border); border-radius:12px; z-index:0;
+    background:var(--surface-1);
+  }
+  .feed-row{
+    display:flex; justify-content:space-between; gap:12px; padding:12px 16px;
+    border-top:1px solid var(--border); cursor:pointer; transition:background .12s;
+  }
+  .feed-row:first-child{ border-top:none; }
+  .feed-row:hover{ background:var(--surface-1); }
+  .feed-row.active{ background:var(--fire-bg); box-shadow:inset 3px 0 0 var(--fire); }
+  .feed-row.active .feed-type{ color:var(--fire-text); }
+  .feed-type{ font-size:13px; font-weight:500; }
+  .feed-loc{ font-size:12px; color:var(--text-secondary); margin-top:2px; }
+  .feed-time{ font-size:12px; color:var(--text-muted); white-space:nowrap; }
+  .feed-nogeo{ font-size:11px; color:var(--text-muted); margin-top:2px; }
+  .leaflet-popup-content{ font-size:13px; line-height:1.5; }
+  .leaflet-popup-content .pop-type{ font-weight:600; }
+  .leaflet-popup-content .pop-loc{ color:#52514e; }
+  .leaflet-popup-content .pop-time{ color:#898781; font-size:12px; }
+  .map-fallback{
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    height:100%; padding:24px; font-size:13px; color:var(--text-secondary); line-height:1.7;
+  }
+  @media (max-width:720px){
+    .map-section{ grid-template-columns:1fr; }
+    #map{ height:360px; order:-1; }
+    .live-list{ max-height:320px; }
+  }
+  @media (max-width:520px){
+    body{ padding:14px; }
+    .hero{ padding:20px 18px; border-radius:14px; }
+    .hero-top h1{ font-size:21px; }
+    .hero-stats{ grid-template-columns:1fr 1fr; gap:10px; }
+    .hs-value{ font-size:22px; }
+    .kpi-row{ grid-template-columns:1fr 1fr; }
+    .controls{ gap:8px; }
+    .controls select{ flex:1; min-width:0; }
+  }
+
+  /* 뉴스: 스크롤 가능한 세로 리스트 */
+  .news-scroll{
+    max-height:440px; overflow-y:auto;
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    margin-bottom:28px;
+  }
+  .news-item{
+    display:block; padding:14px 16px; border-top:1px solid var(--border);
+    text-decoration:none; color:inherit; transition:background .12s;
+  }
+  .news-item:first-child{ border-top:none; }
+  .news-item:hover{ background:var(--surface-1); }
+  .news-title{ font-size:14px; font-weight:500; margin-bottom:5px; }
+  .news-desc{ font-size:13px; color:var(--text-secondary); margin-bottom:8px; }
+  .news-meta{ font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .news-badge{ font-size:11px; padding:2px 7px; border-radius:6px; background:var(--accent-bg); color:var(--accent-text); font-weight:500; }
+  .news-badge.google{ background:var(--google-bg); color:var(--google-text); }
+  .news-empty{ padding:16px; font-size:13px; color:var(--text-muted); }
+
+  .kpi-row{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:12px; margin-bottom:20px;
+  }
+  .kpi-card{
+    position:relative; background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; padding:15px 16px 15px 19px; overflow:hidden;
+    box-shadow:0 2px 8px rgba(200,120,90,.06);
+  }
+  .kpi-card::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--c,var(--fire)); }
+  .kpi-label{ font-size:13px; color:var(--text-secondary); margin-bottom:4px; }
+  .kpi-value{ font-size:24px; font-weight:700; color:var(--text-primary); }
+  .controls{ display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+  .controls label{ font-size:14px; color:var(--text-secondary); }
+  select{
+    height:36px; padding:0 10px; border:1px solid var(--border); border-radius:8px;
+    background:var(--surface); font-size:14px; color:var(--text-primary);
+  }
+  .rank-badge{
+    font-size:12px; padding:4px 11px; border-radius:20px; font-weight:600;
+    background:var(--fire-bg); color:var(--fire-text);
+  }
+  .note{ font-size:12px; color:var(--text-muted); margin-top:10px; }
+  .footer-note{ font-size:12px; color:var(--text-muted); margin-top:32px; border-top:1px solid var(--border); padding-top:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="hero-top">
+      <h1>🔥 전국 화재정보 대시보드</h1>
+      <span class="hero-time">스냅샷 생성 시각: 2026-07-04 · 자동 갱신되지 않는 1회성 데이터</span>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hs-label">🚒 전국 화재접수</div>
+        <div class="hs-value" id="heroRcpt">–</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hs-label">🔴 진행중</div>
+        <div class="hs-value" id="heroProg">–</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hs-label">🚑 인명피해</div>
+        <div class="hs-value" id="heroLife">–</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hs-label">🏚️ 재산피해</div>
+        <div class="hs-value" id="heroPrpt">–</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <p class="section-label">전국 실시간 화재정보 (safekorea.go.kr · 화재) · 항목 클릭 시 지도 확대</p>
+    <span class="news-count" id="liveCount"></span>
+  </div>
+  <div class="map-section">
+    <div class="live-list" id="liveList"></div>
+    <div id="map"></div>
+  </div>
+
+  <div class="section-head">
+    <p class="section-label">오늘의 화재 뉴스 · 건물화재 중심</p>
+    <span class="news-count" id="newsCount"></span>
+  </div>
+  <div class="news-scroll" id="newsList"></div>
+
+  <p class="section-label">시도별 화재 통계 (2026-07-03 기준)</p>
+  <div class="controls">
+    <label for="sidoSelect">시도 선택</label>
+    <select id="sidoSelect"></select>
+    <span class="rank-badge" id="rankBadge"></span>
+  </div>
+  <div class="kpi-row" id="regionKpi"></div>
+
+  <p class="footer-note">실시간 정보·뉴스는 조회 시점 스냅샷이며 자동 갱신되지 않습니다 · 지도는 좌표(EPSG:5186→WGS84 변환)를 기준으로 표시하며, 지도 타일(OpenStreetMap)과 Leaflet 로드를 위해 인터넷 연결이 필요합니다(그 외 리스트·통계·차트는 오프라인 열람 가능) ·뉴스는 건물화재 중심으로 최근 24시간 기사만 수집(차량·산불·선박 화재 및 보험/회사명 매칭 기사 제외) · 네이버 접근 제한으로 Daum 뉴스를 메인, 구글 뉴스를 보조 소스로 사용 · 통계는 소방청 오픈API(시도 단위) 기준</p>
+</div>
+
+<script>
+// lat/lng는 safekorea la·lo(EPSG:5186)를 WGS84로 변환한 값. 좌표가 없으면 null.
+const liveItems = [
+  {type:'화재(고층건물)', loc:'광주광역시 광산구 수완동', time:'07/03 00:31', lat:35.1905, lng:126.8146},
+  {type:'화재(기타화재)', loc:'제주특별자치도 제주시 건입동', time:'07/03 00:06', lat:33.5175, lng:126.5350},
+  {type:'화재(일반화재-차량,주택)', loc:'부산광역시 부산진구 당감동', time:'07/02 23:40', lat:35.1580, lng:129.0300},
+  {type:'재난문자: 자원순환시설 화재, 연기 발생', loc:'경기도 김포시 대곶면 쇄암리', time:'07/01 19:51', lat:37.6400, lng:126.6060},
+  {type:'재난문자: 파티붕붕 건물 화재', loc:'경기도 여주시 점동면 청안리', time:'07/01 14:48', lat:37.2360, lng:127.6820},
+  {type:'재난문자: 영프라자 건물 화재', loc:'경기도 고양시 화정동', time:'07/01 08:54', lat:37.6350, lng:126.8320}
+];
+
+// 지도 초기화 (전국 중심). Leaflet 로드 실패(오프라인) 시 지도만 폴백, 나머지는 정상 렌더.
+let map = null;
+if(typeof L !== 'undefined'){
+  map = L.map('map', { scrollWheelZoom:true }).setView([36.4, 127.9], 7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+} else {
+  document.getElementById('map').innerHTML = '<div class="map-fallback">지도를 불러오려면 인터넷 연결이 필요합니다.<br>좌측 화재정보 리스트는 정상 표시됩니다.</div>';
+}
+
+const liveList = document.getElementById('liveList');
+document.getElementById('liveCount').textContent = `전국 화재 ${liveItems.length}건`;
+const rows = [];
+const markers = [];
+const latlngs = [];
+
+function setActive(idx){
+  rows.forEach((r,i)=> r.classList.toggle('active', i===idx));
+  if(rows[idx]) rows[idx].scrollIntoView({block:'nearest', behavior:'smooth'});
+}
+
+liveItems.forEach((it, i) => {
+  // 리스트 행
+  const row = document.createElement('div');
+  row.className = 'feed-row';
+  const hasGeo = it.lat != null && it.lng != null;
+  row.innerHTML = `
+    <div style="min-width:0;">
+      <div class="feed-type">${it.type}</div>
+      <div class="feed-loc">${it.loc}</div>
+      ${hasGeo ? '' : '<div class="feed-nogeo">좌표 정보 없음 · 지도 표시 불가</div>'}
+    </div>
+    <div class="feed-time">${it.time}</div>
+  `;
+  liveList.appendChild(row);
+  rows.push(row);
+
+  // 지도 핀
+  let marker = null;
+  if(hasGeo && map){
+    marker = L.circleMarker([it.lat, it.lng], {
+      radius:8, color:'#b91c1c', weight:2, fillColor:'#ef4444', fillOpacity:0.85
+    }).addTo(map);
+    marker.bindPopup(`
+      <div class="pop-type">${it.type}</div>
+      <div class="pop-loc">${it.loc}</div>
+      <div class="pop-time">${it.time}</div>
+    `);
+    marker.on('click', ()=> setActive(i));
+    latlngs.push([it.lat, it.lng]);
+  }
+  markers.push(marker);
+
+  // 리스트 클릭 → 핀 확대·팝업
+  row.addEventListener('click', ()=>{
+    setActive(i);
+    if(marker){
+      map.flyTo([it.lat, it.lng], 15, {duration:0.6});
+      marker.openPopup();
+    }
+  });
+});
+
+// 모든 핀이 보이도록 지도 범위 맞춤
+if(map && latlngs.length){
+  map.fitBounds(latlngs, { padding:[30,30], maxZoom:12 });
+}
+
+// 최근 24시간 · 건물화재 중심 뉴스 (source: 'Daum' | 'Google', time: 'MM/DD HH:MM')
+const news = [
+  {title:'강릉 교동 고층아파트서 화재…주민 대피', desc:'새벽 아파트 세대에서 불이 나 주민들이 대피, 인명피해는 없음(원인조사중)', src:'KBS', source:'Daum', time:'07/04 06:12', url:'http://v.daum.net/v/20260704061200000'},
+  {title:'익산 김 가공공장 화재로 직원 화상', desc:'전북 익산시 식품가공공장에서 불이 나 작업자 1명이 화상을 입어 병원 이송', src:'연합뉴스', source:'Daum', time:'07/04 05:40', url:'http://v.daum.net/v/20260704054000000'},
+  {title:'서울 관악구 다세대주택 화재…19명 대피', desc:'심야 다세대주택 1층에서 발화, 소방당국이 20분 만에 진화', src:'뉴시스', source:'Google', time:'07/04 02:18', url:'https://news.google.com/'},
+  {title:'대전 유성구 오피스텔 화재로 5명 연기 흡입', desc:'오피스텔 전기실 추정 화재로 입주민 5명이 연기를 마셔 치료', src:'중도일보', source:'Daum', time:'07/03 23:05', url:'http://v.daum.net/v/20260703230500000'},
+  {title:'인천 남동구 물류창고 화재…대응 1단계 발령', desc:'물류창고 적치물에서 시작된 불로 소방대응 1단계가 발령됐다가 해제', src:'경인일보', source:'Google', time:'07/03 21:47', url:'https://news.google.com/'},
+  {title:'부산 부산진구 상가건물 화재…점포 3곳 소실', desc:'상가 1층 음식점에서 발생한 불이 인접 점포로 번져 3곳이 소실', src:'부산일보', source:'Daum', time:'07/03 19:30', url:'http://v.daum.net/v/20260703193000000'},
+  {title:'수원 요양원 화재 대비 무단…비상대피 훈련', desc:'요양시설 화재 시 거동 불편 입소자 대피 문제 지적, 야간 훈련 실시', src:'경기신문', source:'Google', time:'07/03 15:22', url:'https://news.google.com/'},
+  {title:'광주 북구 원룸 건물 화재…1명 부상', desc:'원룸 3층에서 불이 나 거주자 1명이 손을 다쳐 병원 이송', src:'광주일보', source:'Daum', time:'07/03 12:10', url:'http://v.daum.net/v/20260703121000000'}
+];
+
+const newsList = document.getElementById('newsList');
+const newsCount = document.getElementById('newsCount');
+newsCount.textContent = `최근 24시간 · 건물화재 ${news.length}건`;
+newsList.innerHTML = news.length ? news.map(n => `
+  <a class="news-item" href="${n.url}" target="_blank" rel="noopener">
+    <div class="news-title">${n.title}</div>
+    <div class="news-desc">${n.desc}</div>
+    <div class="news-meta">
+      <span class="news-badge ${n.source === 'Google' ? 'google' : ''}">${n.source}</span>
+      <span>${n.src}</span>
+      <span>·</span>
+      <span>${n.time}</span>
+    </div>
+  </a>
+`).join('') : '<div class="news-empty">최근 24시간 내 수집된 건물화재 뉴스가 없습니다.</div>';
+
+const sidoOrder = ['서울특별시','부산광역시','대구광역시','인천광역시','광주광역시','대전광역시','울산광역시','세종특별자치시','경기도','강원도','충청북도','충청남도','전라북도','전라남도','경상북도','경상남도','제주특별자치도'];
+const sidoData = {
+  '서울특별시': {rcpt:37, prog:4, lifedmg:0, prpt:5064},
+  '부산광역시': {rcpt:13, prog:4, lifedmg:0, prpt:6629},
+  '대구광역시': {rcpt:19, prog:2, lifedmg:0, prpt:0},
+  '인천광역시': {rcpt:36, prog:9, lifedmg:0, prpt:2887},
+  '광주광역시': {rcpt:5, prog:1, lifedmg:0, prpt:221},
+  '대전광역시': {rcpt:6, prog:0, lifedmg:0, prpt:0},
+  '울산광역시': {rcpt:6, prog:2, lifedmg:0, prpt:2772},
+  '세종특별자치시': {rcpt:5, prog:1, lifedmg:0, prpt:0},
+  '경기도': {rcpt:153, prog:40, lifedmg:0, prpt:96526},
+  '강원도': {rcpt:14, prog:3, lifedmg:0, prpt:495},
+  '충청북도': {rcpt:12, prog:6, lifedmg:0, prpt:57030},
+  '충청남도': {rcpt:33, prog:12, lifedmg:0, prpt:3360},
+  '전라북도': {rcpt:15, prog:4, lifedmg:1, prpt:2088},
+  '전라남도': {rcpt:3, prog:1, lifedmg:0, prpt:0},
+  '경상북도': {rcpt:23, prog:7, lifedmg:1, prpt:5963},
+  '경상남도': {rcpt:32, prog:5, lifedmg:0, prpt:41343},
+  '제주특별자치도': {rcpt:8, prog:3, lifedmg:0, prpt:1286}
+};
+function fmt(n){ return Number(n).toLocaleString('ko-KR'); }
+
+// 상단 요약 배너 값
+const natTotal = sidoOrder.reduce((a,n)=>a+sidoData[n].rcpt,0);
+const natProg  = sidoOrder.reduce((a,n)=>a+sidoData[n].prog,0);
+const natPrpt  = sidoOrder.reduce((a,n)=>a+sidoData[n].prpt,0);
+const natLife  = sidoOrder.reduce((a,n)=>a+sidoData[n].lifedmg,0);
+document.getElementById('heroRcpt').innerHTML = fmt(natTotal)+'<span class="hs-unit">건</span>';
+document.getElementById('heroProg').innerHTML = fmt(natProg)+'<span class="hs-unit">건</span>';
+document.getElementById('heroLife').innerHTML = fmt(natLife)+'<span class="hs-unit">명</span>';
+document.getElementById('heroPrpt').innerHTML = fmt(natPrpt)+'<span class="hs-unit">천원</span>';
+
+const sidoSelect = document.getElementById('sidoSelect');
+sidoOrder.forEach(n=>{ const o=document.createElement('option'); o.value=n; o.textContent=n; sidoSelect.appendChild(o); });
+
+function renderRegion(){
+  const sido = sidoSelect.value;
+  const rankBadge = document.getElementById('rankBadge');
+  const d = sidoData[sido];
+  const sorted = sidoOrder.slice().sort((a,b)=>sidoData[b].rcpt-sidoData[a].rcpt);
+  rankBadge.textContent = `화재건수 전국 ${sorted.indexOf(sido)+1}위 / ${sidoOrder.length}개 시도`;
+  const cards = [
+    {label:'화재접수건수', value: fmt(d.rcpt)+'건', color:'var(--fire)'},
+    {label:'진행중', value: fmt(d.prog)+'건', color:'var(--amber)'},
+    {label:'인명피해인원', value: fmt(d.lifedmg)+'명', color:'var(--plum)'},
+    {label:'재산피해총액', value: fmt(d.prpt)+'천원', color:'var(--fire-2)'}
+  ];
+  document.getElementById('regionKpi').innerHTML = cards.map(c=>`
+    <div class="kpi-card" style="--c:${c.color}">
+      <div class="kpi-label">${c.label}</div>
+      <div class="kpi-value">${c.value}</div>
+    </div>
+  `).join('');
+}
+
+sidoSelect.addEventListener('change', renderRegion);
+renderRegion();
+</script>
+</body>
+</html>
