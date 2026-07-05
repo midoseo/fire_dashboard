@@ -30,7 +30,7 @@ body{margin:0;font-family:'Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-s
 .tag .tn{font-weight:800;opacity:.85;margin-left:2px;}
 .live-grid{display:grid;grid-template-columns:340px 1fr;gap:16px;}
 .card{background:var(--card);border-radius:16px;box-shadow:0 3px 12px rgba(180,120,90,.10);overflow:hidden;}
-.live-list{max-height:560px;overflow-y:auto;}
+.live-list{}
 .li{display:block;padding:11px 14px;border-left:4px solid var(--fire);border-bottom:1px solid var(--line);cursor:pointer;transition:background .12s;}
 .li:hover,.li.active{background:#fff2ec;}
 .li .t{font-size:13px;font-weight:700;color:var(--fire);}
@@ -38,7 +38,13 @@ body{margin:0;font-family:'Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-s
 .li .tm{font-size:12px;color:var(--sub);}
 .li.nocoord{border-left-color:#c9bdb6;}
 .empty{padding:26px 14px;color:var(--sub);font-size:14px;text-align:center;}
-#map{height:560px;border-radius:16px;}
+.pager{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;align-items:center;padding:12px 8px;border-top:1px solid var(--line);}
+.pg{min-width:30px;height:30px;padding:0 6px;border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:all .12s;}
+.pg:hover{border-color:var(--fire);color:var(--fire);}
+.pg.active{background:var(--fire);color:#fff;border-color:var(--fire);cursor:default;}
+.pg.disabled{opacity:.4;cursor:default;}
+.pgdots{color:var(--sub);padding:0 2px;}
+#map{height:544px;border-radius:16px;}
 .news-list{max-height:430px;overflow-y:auto;padding:4px;}
 .na{display:block;text-decoration:none;color:inherit;padding:13px 15px;border-bottom:1px solid var(--line);border-left:4px solid var(--orange);}
 .na:hover{background:#fff4ee;}
@@ -68,7 +74,7 @@ select{font-size:15px;padding:8px 12px;border-radius:10px;border:1px solid var(-
 <div class="hero">
   <div class="wrap" style="padding:0;max-width:1180px;">
   <h1>🔥 전국 화재정보 대시보드</h1>
-  <div class="snap">스냅샷 생성 시각: 2026-07-05 13:51 (KST) · 통계 기준일(어제): 2026-07-04</div>
+  <div class="snap">스냅샷 생성 시각: 2026-07-05 13:56 (KST) · 통계 기준일(어제): 2026-07-04</div>
   <div class="kpis">
     <div class="kpi"><div class="lbl">전국 화재접수</div><div class="num">442<span class="unit">건</span></div></div>
     <div class="kpi"><div class="lbl">진행중</div><div class="num">111<span class="unit">건</span></div></div>
@@ -83,7 +89,7 @@ select{font-size:15px;padding:8px 12px;border-radius:10px;border:1px solid var(-
     <div class="slabel">전국 실시간 화재정보 <span class="cnt" id="liveCnt"></span></div>
     <div class="tagbar" id="tagbar"></div>
     <div class="live-grid">
-      <div class="card"><div class="live-list" id="liveList"></div></div>
+      <div class="card"><div class="live-list" id="liveList"></div><div class="pager" id="pager"></div></div>
       <div class="card"><div id="map"></div></div>
     </div>
   </div>
@@ -135,35 +141,63 @@ function initMap(){
 initMap();
 
 const listEl = document.getElementById('liveList');
+const pagerEl = document.getElementById('pager');
 let currentRegion = 'ALL';
+let currentPage = 1;
+const PER = 8;
+let curItems = [], curMarkerOf = new Map();
 
-function renderLive(){
-  listEl.innerHTML = '';
+function applyFilterAndMap(){
   markers.forEach(m=>{ if(m && map) map.removeLayer(m); });
-  markers = [];
-  const items = liveItems.filter(it => currentRegion==='ALL' || it.region===currentRegion);
-  document.getElementById('liveCnt').textContent = (currentRegion==='ALL' ? '전국 화재 ' : currentRegion+' ') + items.length + '건';
-  if(items.length===0){ listEl.innerHTML='<div class="empty">해당 지역의 화재 정보가 없습니다.</div>'; return; }
+  markers = []; curMarkerOf = new Map();
+  curItems = liveItems.filter(it => currentRegion==='ALL' || it.region===currentRegion);
+  document.getElementById('liveCnt').textContent = (currentRegion==='ALL' ? '전국 화재 ' : currentRegion+' ') + curItems.length + '건';
   const bounds = [];
-  items.forEach((it,i)=>{
+  curItems.forEach(it=>{
+    if(it.lat!=null && map){
+      const mk = L.circleMarker([it.lat,it.lng],{radius:6,color:'#c22',weight:2,fillColor:'#ff5a36',fillOpacity:.85}).addTo(map);
+      mk.bindPopup('<b>'+it.type+'</b><br>'+it.loc+'<br>'+it.time);
+      markers.push(mk); curMarkerOf.set(it, mk); bounds.push([it.lat,it.lng]);
+    }
+  });
+  if(map && bounds.length) map.fitBounds(bounds,{padding:[30,30],maxZoom:currentRegion==='ALL'?12:13});
+}
+
+function renderPager(pages){
+  pagerEl.innerHTML = '';
+  if(pages<=1) return;
+  const add=(label,page,o)=>{o=o||{};const b=document.createElement('button');b.className='pg'+(o.active?' active':'')+(o.disabled?' disabled':'');b.textContent=label;if(!o.disabled&&!o.active)b.onclick=()=>{currentPage=page;renderListPage();};pagerEl.appendChild(b);};
+  add('‹',currentPage-1,{disabled:currentPage===1});
+  let s=Math.max(1,currentPage-2), e=Math.min(pages,s+4); s=Math.max(1,e-4);
+  if(s>1){ add('1',1,{active:currentPage===1}); if(s>2){const d=document.createElement('span');d.className='pgdots';d.textContent='…';pagerEl.appendChild(d);} }
+  for(let p=s;p<=e;p++) add(String(p),p,{active:p===currentPage});
+  if(e<pages){ if(e<pages-1){const d=document.createElement('span');d.className='pgdots';d.textContent='…';pagerEl.appendChild(d);} add(String(pages),pages,{active:currentPage===pages}); }
+  add('›',currentPage+1,{disabled:currentPage===pages});
+}
+
+function renderListPage(){
+  listEl.innerHTML = '';
+  const pages = Math.max(1, Math.ceil(curItems.length/PER));
+  if(currentPage>pages) currentPage=pages;
+  if(currentPage<1) currentPage=1;
+  if(curItems.length===0){ listEl.innerHTML='<div class="empty">해당 지역의 화재 정보가 없습니다.</div>'; pagerEl.innerHTML=''; return; }
+  const start=(currentPage-1)*PER;
+  curItems.slice(start,start+PER).forEach(it=>{
     const div = document.createElement('div');
     div.className = 'li' + (it.lat==null?' nocoord':'');
     div.innerHTML = '<div class="t">'+it.type+'</div><div class="l">'+it.loc+'</div><div class="tm">'+it.time+(it.lat==null?' · 좌표 정보 없음':'')+'</div>';
     div.onclick = ()=>{
       document.querySelectorAll('.li').forEach(x=>x.classList.remove('active'));
       div.classList.add('active');
-      if(it.lat!=null && map){ map.flyTo([it.lat,it.lng],15); if(markers[i]) markers[i].openPopup(); }
+      const mk = curMarkerOf.get(it);
+      if(it.lat!=null && map && mk){ map.flyTo([it.lat,it.lng],15); mk.openPopup(); }
     };
     listEl.appendChild(div);
-    if(it.lat!=null && map){
-      const mk = L.circleMarker([it.lat,it.lng],{radius:6,color:'#c22',weight:2,fillColor:'#ff5a36',fillOpacity:.85}).addTo(map);
-      mk.bindPopup('<b>'+it.type+'</b><br>'+it.loc+'<br>'+it.time);
-      mk.on('click',()=>{ document.querySelectorAll('.li').forEach(x=>x.classList.remove('active')); div.classList.add('active'); div.scrollIntoView({block:'center',behavior:'smooth'}); });
-      markers[i]=mk; bounds.push([it.lat,it.lng]);
-    }
   });
-  if(map && bounds.length) map.fitBounds(bounds,{padding:[30,30],maxZoom:currentRegion==='ALL'?12:13});
+  renderPager(pages);
 }
+
+function renderLive(){ currentPage=1; applyFilterAndMap(); renderListPage(); }
 
 // ---- region tags ----
 const tagbar = document.getElementById('tagbar');
