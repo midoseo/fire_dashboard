@@ -74,7 +74,7 @@ select{font-size:15px;padding:8px 12px;border-radius:10px;border:1px solid var(-
 <div class="hero">
   <div class="wrap" style="padding:0;max-width:1180px;">
   <h1>🔥 전국 화재정보 대시보드</h1>
-  <div class="snap">스냅샷 생성 시각: 2026-07-05 13:56 (KST) · 통계 기준일(어제): 2026-07-04</div>
+  <div class="snap">스냅샷 생성 시각: 2026-07-05 14:01 (KST) · 통계 기준일(어제): 2026-07-04</div>
   <div class="kpis">
     <div class="kpi"><div class="lbl">전국 화재접수</div><div class="num">442<span class="unit">건</span></div></div>
     <div class="kpi"><div class="lbl">진행중</div><div class="num">111<span class="unit">건</span></div></div>
@@ -104,17 +104,13 @@ select{font-size:15px;padding:8px 12px;border-radius:10px;border:1px solid var(-
     <div class="card" style="padding:18px;">
       <div class="stat-head">
         <select id="sidoSel"></select>
-        <span style="font-size:13px;color:var(--sub);">시도를 선택하면 상세 지표가 표시됩니다</span>
+        <span style="font-size:13px;color:var(--sub);">전국 또는 시도를 선택하면 상세 지표가 표시됩니다</span>
       </div>
       <div class="stat-kpis">
         <div class="sk"><div class="lbl">화재접수</div><div class="num" id="s_rcpt"></div></div>
         <div class="sk p2"><div class="lbl">진행중</div><div class="num" id="s_prog"></div></div>
         <div class="sk p3"><div class="lbl">인명피해</div><div class="num" id="s_life"></div></div>
         <div class="sk p4"><div class="lbl">재산피해</div><div class="num" id="s_prpt"></div></div>
-      </div>
-      <div class="rank">
-        <h3>전국 화재접수 순위 (건)</h3>
-        <div id="rankBox"></div>
       </div>
     </div>
   </div>
@@ -226,26 +222,19 @@ news.forEach(n=>{
 
 // ---- sido stats ----
 const sel = document.getElementById('sidoSel');
-sidoData.forEach((s,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=s.name; sel.appendChild(o); });
+const national = {name:'전국', rcpt:442, prog:111, life:1, prpt:436039};
+const optAll = document.createElement('option'); optAll.value='ALL'; optAll.textContent='전국'; sel.appendChild(optAll);
+sidoData.forEach((s,i)=>{ const o=document.createElement('option'); o.value=String(i); o.textContent=s.name; sel.appendChild(o); });
 function fmtPrpt(cheon){ const eok=cheon*1000/1e8; if(eok>=1) return eok.toFixed(1)+'억원'; return Math.round(cheon/10).toLocaleString()+'만원'; }
-function showSido(i){
-  const s=sidoData[i];
+function showSido(v){
+  const s = (v==='ALL') ? national : sidoData[+v];
   document.getElementById('s_rcpt').textContent=s.rcpt+'건';
   document.getElementById('s_prog').textContent=s.prog+'건';
   document.getElementById('s_life').textContent=s.life+'명';
   document.getElementById('s_prpt').textContent=fmtPrpt(s.prpt);
 }
-sel.onchange=()=>showSido(+sel.value);
-const defIdx = sidoData.reduce((mi,s,i,a)=>s.rcpt>a[mi].rcpt?i:mi,0);
-sel.value=defIdx; showSido(defIdx);
-
-const rb=document.getElementById('rankBox');
-const maxR=Math.max(...sidoData.map(s=>s.rcpt));
-[...sidoData].sort((a,b)=>b.rcpt-a.rcpt).forEach((s,i)=>{
-  const row=document.createElement('div'); row.className='rrow';
-  row.innerHTML='<span class="rk">'+(i+1)+'</span><span class="rn">'+s.name+'</span><span class="bar" style="width:'+Math.max(6,(s.rcpt/maxR*100))+'%"></span><span class="rv">'+s.rcpt+'건</span>';
-  rb.appendChild(row);
-});
+sel.onchange=()=>showSido(sel.value);
+sel.value='ALL'; showSido('ALL');
 </script>
 </body>
 </html>
