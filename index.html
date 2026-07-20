@@ -54,6 +54,13 @@ select{padding:8px 12px;border-radius:10px;border:1px solid var(--line);font-siz
 .skpi .lab{font-size:12px;color:var(--muted);}
 .skpi .val{font-size:26px;font-weight:800;margin-top:2px;}
 .foot{font-size:12px;color:var(--muted);margin-top:18px;line-height:1.7;padding:0 4px 30px;}
+.srctbl{width:100%;border-collapse:collapse;font-size:13px;}
+.srctbl th{text-align:left;padding:8px 10px;border-bottom:2px solid var(--line);color:var(--muted);font-weight:700;}
+.srctbl td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink);}
+.srctbl td:last-child{color:var(--muted);}
+.srctbl .sm{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-top:2px;}
+.td-today{background:#fff0e8;color:var(--accent);font-weight:700;padding:2px 8px;border-radius:8px;white-space:nowrap;}
+.td-prev{background:#e6f7ee;color:var(--green);font-weight:700;padding:2px 8px;border-radius:8px;white-space:nowrap;display:inline-block;text-align:center;}
 .empty{color:var(--muted);font-size:14px;padding:20px;text-align:center;}
 </style>
 </head>
@@ -61,7 +68,7 @@ select{padding:8px 12px;border-radius:10px;border:1px solid var(--line);font-siz
 <div class="wrap">
   <div class="banner">
     <h1>&#128293; 전국 화재정보 대시보드</h1>
-    <div class="sub">스냅샷 생성 시각: 2026-07-20 13:11 (KST) &middot; 통계는 전일(2026-07-19) 확정 기준</div>
+    <div class="sub">스냅샷 생성 시각: 2026-07-20 13:34 (KST) &middot; 통계는 전일(2026-07-19) 확정 기준</div>
     <div class="kpis">
       <div class="kpi"><div class="lab">화재 접수(전일)</div><div class="val">544</div></div>
       <div class="kpi"><div class="lab">진행/처리(전일)</div><div class="val">173</div></div>
@@ -102,19 +109,28 @@ select{padding:8px 12px;border-radius:10px;border:1px solid var(--line);font-siz
     </div>
   </div>
 
-  <div class="foot">
-    &middot; 차량 단독 화재는 실시간 목록에서 제외했습니다(건물 키워드 동반 시 유지).<br>
-    &middot; 상단 지역 태그로 시도/광역시별 필터링이 가능합니다.<br>
-    &middot; NFDS 일일화재현황(B14)과 &plusmn;30분&middot;동읍면 기준으로 대조해 일치 여부를 표시합니다(참고 지표).<br>
-    &middot; 시도별 통계(접수&middot;진행&middot;인명&middot;재산)는 소방청 오픈API의 <b>전일(2026-07-19) 확정</b> 값입니다. 재산&middot;인명은 화재조사 후 확정되어 당일치로는 집계되지 않으므로 전일 기준을 사용합니다. 실시간 목록&middot;지도&middot;뉴스는 오늘 기준이라 섹션별 기준일이 다릅니다.<br>
-    &middot; 23~24시 발생분은 익일 목록으로 넘어가 이 스냅샷에서 빠질 수 있습니다.<br>
-    &middot; 지도는 인터넷 연결이 필요합니다(Leaflet/OSM). &middot; 구글 뉴스 수집 실패로 Daum 뉴스만 반영되었습니다.
+  <div class="section" style="border-left-color:var(--muted);">
+    <h2 style="font-size:15px;">데이터 출처 &middot; 수집 기준일</h2>
+    <table class="srctbl">
+      <thead><tr><th>소스</th><th>기준일</th><th>대시보드 반영</th></tr></thead>
+      <tbody>
+        <tr><td><b>국민안전24 실시간</b><span class="sm">safekorea</span></td><td><span class="td-today">오늘(당일)</span></td><td>실시간 리스트 &middot; 지도. 00:00부터 쌓여 자정 리셋되는 당일 출동 목록.</td></tr>
+        <tr><td><b>NFDS 일일화재현황 B14</b><span class="sm">nfds.go.kr</span></td><td><span class="td-today">오늘(당일)</span></td><td>국민안전24와 발생시각&middot;동읍면(&plusmn;30분) 대조 → "NFDS 일치" 뱃지. 건별 발생일시&middot;피해액 제공.</td></tr>
+        <tr><td><b>소방청 오픈API 시도별 통계</b><span class="sm">apis.data.go.kr &middot; NFDS 계열</span></td><td><span class="td-prev">전일 확정<br>(2026-07-19)</span></td><td>상단 배너 KPI &middot; 시도별 통계. 인명&middot;재산은 화재조사 후 확정되어 당일치로는 0이라 전일 값을 사용.</td></tr>
+      </tbody>
+    </table>
+    <div class="foot" style="margin-top:12px;">
+      &middot; "NFDS"는 두 갈래로 쓰입니다 — <b>B14(건별&middot;오늘)</b> 는 실시간 대조에, <b>오픈API(집계&middot;전일)</b> 는 통계 KPI에.<br>
+      &middot; 국민안전24와 B14는 둘 다 오늘 기준이라 서로 대조가 가능하고, 시도별 통계만 전일 기준입니다.<br>
+      &middot; 차량 단독 화재는 실시간 목록에서 제외(건물 키워드 동반 시 유지). &middot; 상단 지역 태그로 시도/광역시 필터.<br>
+      &middot; 23~24시 발생분은 익일 목록으로 넘어가 이 스냅샷에서 빠질 수 있습니다. &middot; 지도는 인터넷 연결 필요(Leaflet/OSM).
+    </div>
   </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const DATA = {"liveItems": [{"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 화성시 만세구 우정읍 주곡리", "time": "2026/07/20 06:42", "lat": 37.133656263405385, "lng": 126.79842594185146, "region": "경기", "match": true, "nfds_time": "06:42"}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경상북도 포항시 북구 죽도동", "time": "2026/07/20 05:15", "lat": 36.03084396697986, "lng": 129.36506807104678, "region": "경북", "match": true, "nfds_time": "05:15"}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "부산광역시 부산진구 부전동", "time": "2026/07/20 05:15", "lat": 35.15402583503116, "lng": 129.05826298530783, "region": "부산", "match": true, "nfds_time": "05:15"}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "부산광역시 서구 부용동2가", "time": "2026/07/20 04:37", "lat": 35.10706282878727, "lng": 129.0166484894637, "region": "부산", "match": true, "nfds_time": "04:37"}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "인천광역시 남동구 논현동", "time": "2026/07/20 03:15", "lat": 37.413026467956705, "lng": 126.69824240321076, "region": "인천", "match": true, "nfds_time": "03:15"}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "전라북도 군산시 삼학동", "time": "2026/07/20 02:51", "lat": 35.97684962637193, "lng": 126.71678724651377, "region": "전북", "match": true, "nfds_time": "02:51"}], "news": [{"title": "인천 쿠팡물류센터 화재 55시간째 진화…대피령에 휴교까지", "url": "http://v.daum.net/v/20260720123711469", "time": "07/20 12:37", "tsnum": "20260720123711", "source": "Daum", "desc": "", "src": "v.daum.net"}, {"title": "쿠팡 물류센터 화재 사흘째···건물 네 면이 다 탔다", "url": "http://v.daum.net/v/20260720115727238", "time": "07/20 11:57", "tsnum": "20260720115727", "source": "Daum", "desc": "", "src": "v.daum.net"}, {"title": "'아파트 옆에서 화재, 아찔'", "url": "http://v.daum.net/v/20260720113706335", "time": "07/20 11:37", "tsnum": "20260720113706", "source": "Daum", "desc": "", "src": "v.daum.net"}, {"title": "청양 청남면 저온창고서 화재…신속 진화로 인명피해 無", "url": "http://v.daum.net/v/20260720111717271", "time": "07/20 11:17", "tsnum": "20260720111717", "source": "Daum", "desc": "", "src": "v.daum.net"}, {"title": "보성 '트래킹 현상' 주택 화재…\"분전반·콘센트 먼지 제거\"", "url": "http://v.daum.net/v/20260720110302506", "time": "07/20 11:03", "tsnum": "20260720110302", "source": "Daum", "desc": "", "src": "v.daum.net"}, {"title": "전남광주 진도 전복양식장 화재...50여 분 만에 진화", "url": "http://v.daum.net/v/20260720110002302", "time": "07/20 11:00", "tsnum": "20260720110002", "source": "Daum", "desc": "", "src": "v.daum.net"}], "regionOrder": ["부산", "경기", "경북", "인천", "전북"], "regionCounts": {"경기": 1, "경북": 1, "부산": 2, "인천": 1, "전북": 1}, "sidoMap": {"전국": {"rcpt": 544, "prog": 173, "life": 2, "prop": 265165}, "서울특별시": {"rcpt": 34, "prog": 2, "life": 0, "prop": 10453}, "전남광주통합특별시": {"rcpt": 65, "prog": 30, "life": 0, "prop": 279}, "부산광역시": {"rcpt": 22, "prog": 7, "life": 0, "prop": 1149}, "대구광역시": {"rcpt": 25, "prog": 1, "life": 0, "prop": 27933}, "인천광역시": {"rcpt": 27, "prog": 13, "life": 0, "prop": 0}, "대전광역시": {"rcpt": 11, "prog": 3, "life": 0, "prop": 818}, "울산광역시": {"rcpt": 13, "prog": 5, "life": 0, "prop": 4604}, "세종특별자치시": {"rcpt": 5, "prog": 1, "life": 0, "prop": 0}, "경기도": {"rcpt": 155, "prog": 56, "life": 2, "prop": 157871}, "강원도": {"rcpt": 15, "prog": 3, "life": 0, "prop": 11243}, "충청북도": {"rcpt": 27, "prog": 9, "life": 0, "prop": 0}, "충청남도": {"rcpt": 30, "prog": 6, "life": 0, "prop": 0}, "전라북도": {"rcpt": 14, "prog": 6, "life": 0, "prop": 9900}, "경상북도": {"rcpt": 40, "prog": 15, "life": 0, "prop": 32314}, "경상남도": {"rcpt": 50, "prog": 13, "life": 0, "prop": 8520}, "제주특별자치도": {"rcpt": 11, "prog": 3, "life": 0, "prop": 81}}, "total": {"rcpt": 544, "prog": 173, "life": 2, "prop": 265165}, "nMatch": 6, "nLive": 6, "snap": "2026-07-20 13:11"};
+const DATA = {"liveItems": [{"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 화성시 만세구 우정읍 주곡리", "time": "2026/07/20 06:42", "lat": 37.133656263405385, "lng": 126.79842594185146, "region": "경기", "match": true, "nfds_time": "06:42"}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경상북도 포항시 북구 죽도동", "time": "2026/07/20 05:15", "lat": 36.03084396697986, "lng": 129.36506807104678, "region": "경북", "match": true, "nfds_time": "05:15"}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "부산광역시 부산진구 부전동", "time": "2026/07/20 05:15", "lat": 35.15402583503116, "lng": 129.05826298530783, "region": "부산", "match": true, "nfds_time": "05:15"}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "부산광역시 서구 부용동2가", "time": "2026/07/20 04:37", "lat": 35.10706282878727, "lng": 129.0166484894637, "region": "부산", "match": true, "nfds_time": "04:37"}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "인천광역시 남동구 논현동", "time": "2026/07/20 03:15", "lat": 37.413026467956705, "lng": 126.69824240321076, "region": "인천", "match": true, "nfds_time": "03:15"}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "전라북도 군산시 삼학동", "time": "2026/07/20 02:51", "lat": 35.97684962637193, "lng": 126.71678724651377, "region": "전북", "match": true, "nfds_time": "02:51"}], "news": [{"title": "인천 쿠팡물류센터 화재 55시간째 진화…대피령에 휴교까지", "url": "http://v.daum.net/v/20260720123711469", "time": "07/20 12:37", "tsnum": "20260720123711", "source": "Daum", "desc": "", "src": "v.daum.net"}, {"title": "쿠팡 물류센터 화재 사흘째···건물 네 면이 다 탔다", "url": "http://v.daum.net/v/20260720115727238", "time": "07/20 11:57", "tsnum": "20260720115727", "source": "Daum", "desc": "", "src": "v.daum.net"}, {"title": "'아파트 옆에서 화재, 아찔'", "url": "http://v.daum.net/v/20260720113706335", "time": "07/20 11:37", "tsnum": "20260720113706", "source": "Daum", "desc": "", "src": "v.daum.net"}, {"title": "청양 청남면 저온창고서 화재…신속 진화로 인명피해 無", "url": "http://v.daum.net/v/20260720111717271", "time": "07/20 11:17", "tsnum": "20260720111717", "source": "Daum", "desc": "", "src": "v.daum.net"}, {"title": "보성 '트래킹 현상' 주택 화재…\"분전반·콘센트 먼지 제거\"", "url": "http://v.daum.net/v/20260720110302506", "time": "07/20 11:03", "tsnum": "20260720110302", "source": "Daum", "desc": "", "src": "v.daum.net"}, {"title": "전남광주 진도 전복양식장 화재...50여 분 만에 진화", "url": "http://v.daum.net/v/20260720110002302", "time": "07/20 11:00", "tsnum": "20260720110002", "source": "Daum", "desc": "", "src": "v.daum.net"}], "regionOrder": ["부산", "경기", "경북", "인천", "전북"], "regionCounts": {"경기": 1, "경북": 1, "부산": 2, "인천": 1, "전북": 1}, "sidoMap": {"전국": {"rcpt": 544, "prog": 173, "life": 2, "prop": 265165}, "서울특별시": {"rcpt": 34, "prog": 2, "life": 0, "prop": 10453}, "전남광주통합특별시": {"rcpt": 65, "prog": 30, "life": 0, "prop": 279}, "부산광역시": {"rcpt": 22, "prog": 7, "life": 0, "prop": 1149}, "대구광역시": {"rcpt": 25, "prog": 1, "life": 0, "prop": 27933}, "인천광역시": {"rcpt": 27, "prog": 13, "life": 0, "prop": 0}, "대전광역시": {"rcpt": 11, "prog": 3, "life": 0, "prop": 818}, "울산광역시": {"rcpt": 13, "prog": 5, "life": 0, "prop": 4604}, "세종특별자치시": {"rcpt": 5, "prog": 1, "life": 0, "prop": 0}, "경기도": {"rcpt": 155, "prog": 56, "life": 2, "prop": 157871}, "강원도": {"rcpt": 15, "prog": 3, "life": 0, "prop": 11243}, "충청북도": {"rcpt": 27, "prog": 9, "life": 0, "prop": 0}, "충청남도": {"rcpt": 30, "prog": 6, "life": 0, "prop": 0}, "전라북도": {"rcpt": 14, "prog": 6, "life": 0, "prop": 9900}, "경상북도": {"rcpt": 40, "prog": 15, "life": 0, "prop": 32314}, "경상남도": {"rcpt": 50, "prog": 13, "life": 0, "prop": 8520}, "제주특별자치도": {"rcpt": 11, "prog": 3, "life": 0, "prop": 81}}, "total": {"rcpt": 544, "prog": 173, "life": 2, "prop": 265165}, "nMatch": 6, "nLive": 6, "snap": "2026-07-20 13:34"};
 const PER = 8;
 let curRegion = '전체';
 let curPage = 1;
