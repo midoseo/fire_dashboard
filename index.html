@@ -1,410 +1,289 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>전국 화재정보 대시보드</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-  :root {
-    --bg: #fff7f2;
-    --accent: #e8492c;
-    --accent-dark: #c53a20;
-    --card-bg: #ffffff;
-    --text: #2b2320;
-    --muted: #8a7a72;
-    --border: #f0ddd3;
-    --green: #2e9e5b;
-    --gray: #9a9a9a;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
-    background: var(--bg);
-    color: var(--text);
-  }
-  .wrap { max-width: 1200px; margin: 0 auto; padding: 20px; }
-  .banner {
-    background: linear-gradient(135deg, #ff7a4a 0%, #e8492c 50%, #c53a20 100%);
-    border-radius: 16px;
-    padding: 28px 32px;
-    color: #fff;
-    box-shadow: 0 8px 24px rgba(232,73,44,0.25);
-  }
-  .banner h1 { margin: 0 0 4px; font-size: 22px; }
-  .banner .sub { font-size: 13px; opacity: 0.9; margin-bottom: 18px; }
-  .kpi-row { display: flex; gap: 18px; flex-wrap: wrap; }
-  .kpi { background: rgba(255,255,255,0.14); border-radius: 12px; padding: 14px 20px; min-width: 140px; }
-  .kpi .label { font-size: 12px; opacity: 0.85; margin-bottom: 4px; }
-  .kpi .value { font-size: 30px; font-weight: 700; }
-  .kpi .unit { font-size: 13px; font-weight: 400; margin-left: 4px; }
-
-  .section { margin-top: 28px; }
-  .section-title { font-size: 17px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;}
-  .section-title .badge { font-size: 11px; background: var(--accent); color: #fff; padding: 2px 8px; border-radius: 10px; font-weight: 500;}
-
-  .nfds-summary {
-    background: #fff; border-left: 4px solid var(--green); border-radius: 8px;
-    padding: 10px 16px; font-size: 13px; margin-bottom: 12px; color: #333;
-  }
-
-  .tagbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
-  .tag {
-    background: #fff; border: 1px solid var(--border); border-radius: 999px;
-    padding: 6px 14px; font-size: 13px; cursor: pointer; color: var(--text);
-    transition: all 0.15s;
-  }
-  .tag:hover { border-color: var(--accent); }
-  .tag.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-
-  .toggle-all {
-    display: inline-block; margin-left: auto; font-size: 12px; color: var(--accent);
-    cursor: pointer; text-decoration: underline; float: right;
-  }
-
-  .live-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-  @media (max-width: 860px) { .live-grid { grid-template-columns: 1fr; } }
-
-  .card { background: var(--card-bg); border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-  .list-count { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
-
-  .fire-item {
-    border-left: 3px solid var(--accent); background: #fffaf7; border-radius: 8px;
-    padding: 10px 12px; margin-bottom: 8px; cursor: pointer; transition: background 0.15s;
-  }
-  .fire-item:hover { background: #ffeee6; }
-  .fire-item .ftype { font-weight: 600; font-size: 13px; }
-  .fire-item .floc { font-size: 13px; color: #444; margin-top: 2px; }
-  .fire-item .fmeta { font-size: 12px; color: var(--muted); margin-top: 4px; display:flex; gap:8px; align-items:center; }
-  .nfds-badge { font-size: 11px; padding: 2px 7px; border-radius: 8px; font-weight: 500; }
-  .nfds-badge.ok { background: #e4f7ea; color: var(--green); }
-  .nfds-badge.no { background: #f0f0f0; color: var(--gray); }
-  .empty-msg { text-align: center; color: var(--muted); padding: 30px 0; font-size: 14px; }
-
-  .pagination { display: flex; justify-content: center; gap: 4px; margin-top: 14px; flex-wrap: wrap; }
-  .page-btn {
-    border: 1px solid var(--border); background: #fff; border-radius: 6px;
-    padding: 5px 10px; font-size: 13px; cursor: pointer; color: var(--text); min-width: 30px; text-align:center;
-  }
-  .page-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .page-btn.dots { border: none; cursor: default; }
-
-  #map { height: 480px; border-radius: 10px; }
-
-  .news-list { max-height: 480px; overflow-y: auto; }
-  .news-item { padding: 12px 6px; border-bottom: 1px solid var(--border); }
-  .news-item:last-child { border-bottom: none; }
-  .news-item a { color: var(--text); text-decoration: none; font-size: 14px; font-weight: 600; line-height: 1.4; }
-  .news-item a:hover { color: var(--accent); }
-  .news-meta { margin-top: 6px; display: flex; gap: 8px; align-items: center; }
-  .src-badge { font-size: 11px; padding: 2px 8px; border-radius: 8px; background: #ffe4d6; color: var(--accent-dark); font-weight: 500; }
-  .news-time { font-size: 12px; color: var(--muted); }
-
-  .sido-card { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
-  select#sidoSelect {
-    padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border);
-    font-size: 14px; background: #fff; color: var(--text);
-  }
-  .kpi3-row { display: flex; gap: 14px; flex-wrap: wrap; }
-  .kpi3 { background: #fff7f2; border-radius: 10px; padding: 12px 20px; min-width: 130px; border: 1px solid var(--border); }
-  .kpi3 .label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-  .kpi3 .value { font-size: 22px; font-weight: 700; color: var(--accent-dark); }
-
-  .source-table { width: 100%; border-collapse: collapse; font-size: 13px; background: #fff; border-radius: 10px; overflow: hidden; }
-  .source-table th, .source-table td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
-  .source-table th { background: #fff1ea; }
-
-  .footer-note {
-    margin-top: 24px; background: #fff; border-radius: 10px; padding: 16px 20px;
-    font-size: 12px; color: var(--muted); line-height: 1.8;
-  }
-  .footer-note li { margin-bottom: 2px; }
+:root{--bg:#fff7f2;--card:#fff;--ink:#241a16;--sub:#7a6a62;--line:#f0ddd2;
+--red:#e5342a;--orange:#ff7a1a;--amber:#ffb020;--green:#12a150;--gray:#9aa0a6;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;}
+.wrap{max-width:1240px;margin:0 auto;padding:18px 16px 60px}
+.banner{background:linear-gradient(120deg,#e5342a 0%,#ff7a1a 55%,#ffb020 100%);
+color:#fff;border-radius:18px;padding:22px 24px;box-shadow:0 10px 26px rgba(229,52,42,.22)}
+.banner h1{margin:0 0 2px;font-size:22px;letter-spacing:-.4px}
+.banner .sub{opacity:.94;font-size:12.5px;margin-bottom:16px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.kpi{background:rgba(255,255,255,.17);border:1px solid rgba(255,255,255,.28);
+border-radius:12px;padding:12px 14px}
+.kpi .lb{font-size:11.5px;opacity:.95}
+.kpi .vl{font-size:27px;font-weight:800;line-height:1.15;margin-top:2px}
+.kpi .un{font-size:12px;font-weight:600;opacity:.9;margin-left:2px}
+.note{margin-top:12px;font-size:11.5px;background:rgba(0,0,0,.16);
+border-radius:9px;padding:8px 11px;line-height:1.6}
+.card{background:var(--card);border-radius:16px;padding:18px;margin-top:16px;
+box-shadow:0 3px 14px rgba(120,70,50,.09);position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--orange)}
+.card.c-red::before{background:var(--red)}
+.card.c-amber::before{background:var(--amber)}
+.card h2{margin:0 0 3px;font-size:16.5px;letter-spacing:-.3px}
+.card .desc{margin:0 0 14px;font-size:12px;color:var(--sub)}
+.tagbar{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
+.tag{border:1px solid var(--line);background:#fffaf7;color:var(--ink);
+border-radius:999px;padding:6px 13px;font-size:12.5px;cursor:pointer;font-weight:600}
+.tag:hover{border-color:var(--orange)}
+.tag.on{background:var(--red);border-color:var(--red);color:#fff}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.listhd{font-size:12.5px;color:var(--sub);margin-bottom:8px;font-weight:600}
+.item{border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-bottom:8px;cursor:pointer;background:#fffdfb}
+.item:hover{border-color:var(--orange);background:#fff6ef}
+.item .tp{font-size:13px;font-weight:700;margin-bottom:3px}
+.item .lc{font-size:12px;color:var(--sub)}
+.item .mt{display:flex;align-items:center;gap:7px;margin-top:6px;flex-wrap:wrap}
+.tm{font-size:11.5px;color:var(--red);font-weight:700}
+.bdg{font-size:10.5px;padding:2px 8px;border-radius:999px;font-weight:700}
+.bdg.ok{background:#e4f7ec;color:var(--green)}
+.bdg.no{background:#f1f1f1;color:var(--gray)}
+#map{width:100%;height:470px;border-radius:12px;border:1px solid var(--line)}
+.pager{display:flex;gap:5px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.pg{border:1px solid var(--line);background:#fff;border-radius:8px;
+padding:5px 10px;font-size:12px;cursor:pointer}
+.pg:hover{border-color:var(--orange)}
+.pg.on{background:var(--red);border-color:var(--red);color:#fff;font-weight:700}
+.pg.dis{opacity:.4;cursor:default}
+.dots{padding:0 3px;color:var(--sub);font-size:12px}
+.empty{padding:26px;text-align:center;color:var(--sub);font-size:13px;
+border:1px dashed var(--line);border-radius:11px}
+.nw{border-bottom:1px solid var(--line);padding:11px 2px}
+.nw:last-child{border-bottom:0}
+.nw a{color:var(--ink);text-decoration:none;font-size:13.5px;font-weight:700;line-height:1.45}
+.nw a:hover{color:var(--red)}
+.nw .dz{font-size:12px;color:var(--sub);margin-top:4px;line-height:1.5}
+.nw .mz{margin-top:6px;display:flex;gap:7px;align-items:center}
+.sbz{font-size:10.5px;background:#fff0e6;color:#c2410c;padding:2px 8px;border-radius:999px;font-weight:700}
+.newswrap{max-height:400px;overflow-y:auto}
+.selrow{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+select{border:1px solid var(--line);border-radius:9px;padding:8px 12px;
+font-size:13.5px;background:#fff;color:var(--ink);font-weight:600;min-width:190px}
+.skpi{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.sk{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fffaf7}
+.sk .lb{font-size:11.5px;color:var(--sub)}
+.sk .vl{font-size:24px;font-weight:800;margin-top:3px;color:var(--red)}
+.sk .vl small{font-size:12px;font-weight:600;color:var(--sub);margin-left:2px}
+.sk.na .vl{color:var(--gray)}
+.foot{margin-top:20px;font-size:11.5px;color:var(--sub);line-height:1.85;
+background:#fff;border-radius:14px;padding:16px 18px}
+.foot b{color:var(--ink)}
+@media(max-width:900px){.split{grid-template-columns:1fr}.kpis,.skpi{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <div class="banner">
-    <h1>🔥 전국 화재정보 대시보드</h1>
-    <div class="sub">스냅샷 생성 시각: 2026-07-27 23:05 (KST) · 시도별 통계는 전일(2026-07-26) 확정 기준</div>
-    <div class="kpi-row">
-      <div class="kpi"><div class="label">전국 화재 진행/처리 (전일)</div><div class="value" id="bannerProg">-</div></div>
-      <div class="kpi"><div class="label">인명피해 (전일)</div><div class="value" id="bannerLife">-<span class="unit">명</span></div></div>
-      <div class="kpi"><div class="label">재산피해 (전일)</div><div class="value" id="bannerPrpt">-<span class="unit">천원</span></div></div>
-    </div>
+<div class="banner">
+  <h1>전국 화재정보 대시보드</h1>
+  <div class="sub">스냅샷 생성 시각: 2026-07-29 00:40 (KST) &nbsp;·&nbsp; 시도별 통계 기준일: 2026-07-28</div>
+  <div class="kpis">
+    <div class="kpi"><div class="lb">화재 접수</div><div class="vl" id="kR">-<span class="un">건</span></div></div>
+    <div class="kpi"><div class="lb">진행 중</div><div class="vl" id="kP">-<span class="un">건</span></div></div>
+    <div class="kpi"><div class="lb">인명피해</div><div class="vl" id="kL">-<span class="un">명</span></div></div>
+    <div class="kpi"><div class="lb">재산피해</div><div class="vl" id="kD">-<span class="un">천원</span></div></div>
   </div>
-
-  <div class="section">
-    <div class="section-title">실시간 화재정보 <span class="badge">국민안전24 · 오늘(2026-07-27) 기준</span></div>
-    <div class="nfds-summary" id="nfdsSummaryLine"></div>
-    <div class="tagbar" id="tagBar"></div>
-    <div style="clear:both"></div>
-    <div class="live-grid">
-      <div class="card">
-        <div class="list-count" id="listCount"></div>
-        <div id="fireList"></div>
-        <div class="pagination" id="pagination"></div>
-      </div>
-      <div class="card">
-        <div id="map"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">오늘의 화재 뉴스 <span class="badge">건물화재 중심 · 최근 24시간</span></div>
-    <div class="card">
-      <div class="news-list" id="newsList"></div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">시도별 화재 통계 <span class="badge">전일(2026-07-26) 확정 기준</span></div>
-    <div class="card sido-card">
-      <select id="sidoSelect"></select>
-      <div class="kpi3-row">
-        <div class="kpi3"><div class="label">화재 진행/처리</div><div class="value" id="sidoProg">-</div></div>
-        <div class="kpi3"><div class="label">인명피해(명)</div><div class="value" id="sidoLife">-</div></div>
-        <div class="kpi3"><div class="label">재산피해(천원)</div><div class="value" id="sidoPrpt">-</div></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="section">
-    <table class="source-table">
-      <tr><th>데이터 출처</th><th>기준일</th><th>용도</th></tr>
-      <tr><td>국민안전24 실시간 화재정보</td><td>오늘</td><td>실시간 리스트·지도(차량단독 제외)</td></tr>
-      <tr><td>NFDS(국가화재정보시스템) 일일화재현황(B14)</td><td>오늘</td><td>국민안전24 항목과 발생시각·지역 대조(±30분·동읍면)</td></tr>
-      <tr><td>소방청 오픈API 시도별 통계</td><td>전일 확정</td><td>배너 KPI·시도별 통계(화재조사 확정 후 집계)</td></tr>
-    </table>
-  </div>
-
-  <div class="footer-note">
-    <ul>
-      <li>· 차량 단독 화재는 실시간 목록에서 제외했습니다(주택·건물 등이 함께 기재된 경우는 포함).</li>
-      <li>· 배너·시도별 통계의 화재 건수는 "진행/처리" 기준이며, 119 접수 중 오인신고·자체진화·상황종료 건은 제외됩니다.</li>
-      <li>· 시도별 통계는 재산·인명피해가 화재조사 완료 후 확정되는 특성상 전일(어제) 확정 데이터를 사용합니다. 실시간·지도·뉴스는 오늘 기준이라 섹션별 기준일이 하루 다를 수 있습니다.</li>
-      <li>· NFDS 일일화재현황(B14)과 국민안전24 실시간 항목을 동읍면 주소·발생시각(±30분)으로 대조해 일치 여부를 표시합니다. 기본적으로 NFDS 일치 항목만 표시하며(미확인 항목은 숨김), '전체 보기'로 펼칠 수 있습니다.</li>
-      <li>· 23~24시 사이 발생한 화재는 자정 리셋 구조상 다음날 목록으로 넘어가 이번 스냅샷에서 빠질 수 있습니다.</li>
-      <li>· 지도는 인터넷 연결이 필요하며(Leaflet CDN), 오프라인 상태에서는 표시되지 않을 수 있습니다.</li>
-    </ul>
-  </div>
-
+  <div class="note" id="bnote"></div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<div class="card c-red">
+  <h2>실시간 화재정보 <span style="font-size:12px;font-weight:500;color:var(--sub)">(국민안전24)</span></h2>
+  <p class="desc" id="matchline"></p>
+  <div class="tagbar" id="tags"></div>
+  <div class="split">
+    <div>
+      <div class="listhd" id="lhd"></div>
+      <div id="list"></div>
+      <div class="pager" id="pager"></div>
+    </div>
+    <div><div id="map"></div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>오늘의 화재 뉴스</h2>
+  <p class="desc">건물화재 중심 · 최근 24시간 · 최신순</p>
+  <div class="newswrap" id="news"></div>
+</div>
+
+<div class="card c-amber">
+  <h2>시도별 화재 통계 <span style="font-size:12px;font-weight:500;color:var(--sub)">(소방청 · 기준일 2026-07-28)</span></h2>
+  <p class="desc">시도를 선택하면 해당 지역 수치로 갱신됩니다.</p>
+  <div class="selrow"><select id="sel"></select></div>
+  <div class="skpi">
+    <div class="sk"><div class="lb">화재접수</div><div class="vl" id="sR">-<small>건</small></div></div>
+    <div class="sk"><div class="lb">진행중</div><div class="vl" id="sP">-<small>건</small></div></div>
+    <div class="sk" id="skL"><div class="lb">인명피해</div><div class="vl" id="sL">-<small>명</small></div></div>
+    <div class="sk" id="skD"><div class="lb">재산피해</div><div class="vl" id="sD">-<small>천원</small></div></div>
+  </div>
+</div>
+
+<div class="foot" id="foot"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+var DATA = {"snapshot": "2026-07-29 00:40 (KST)", "basisDate": "2026-07-28", "liveItems": [{"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 구리시 아천동", "time": "2026/07/29 00:30", "lat": 37.5728654337273, "lng": 127.12805148615341, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상북도 포항시 남구 구룡포읍 석병리", "time": "2026/07/29 00:30", "lat": 36.012055436072664, "lng": 129.5775895067608, "region": "경북", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 수원시 영통구 영통동", "time": "2026/07/29 00:23", "lat": 37.24798300047861, "lng": 127.07865036300781, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 고양시 덕양구 관산동", "time": "2026/07/29 00:17", "lat": 37.706383488039606, "lng": 126.85730570264768, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 평택시 통복동", "time": "2026/07/29 00:00", "lat": 36.99316609292744, "lng": 127.07246715135302, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 화성시 동탄구 방교동", "time": "2026/07/28 23:52", "lat": 37.17988140875417, "lng": 127.09156370688642, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 시흥시 정왕동", "time": "2026/07/28 23:47", "lat": 37.34293392167077, "lng": 126.68703463599164, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "전남광주통합특별시 해남군 송지면 송호리", "time": "2026/07/28 23:41", "lat": 34.320771503795285, "lng": 126.52099424272933, "region": "전남·광주", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "인천광역시 미추홀구 도화동", "time": "2026/07/28 23:38", "lat": 37.466478847611754, "lng": 126.66002410052528, "region": "인천", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 광명시 광명동", "time": "2026/07/28 23:37", "lat": 37.4850354736509, "lng": 126.85597521726436, "region": "경기", "match": false, "nfds_time": null}], "regions": [{"name": "경기", "count": 7}, {"name": "경북", "count": 1}, {"name": "전남·광주", "count": 1}, {"name": "인천", "count": 1}], "news": [{"title": "인천 쿠팡센터 합동감식…화재원인 추정 배터리 등 수거", "desc": "소방과 경찰, 국과수 등 10개 기관은 어제(28일) 화재가 발생한 인천 쿠팡 물류센터에 인력 35명을 투입해 합동감식을 진행했습니다.", "src": "연합뉴스TV", "url": "http://v.daum.net/v/20260729003642735", "ts": "20260729003642", "time": "07/29 00:36", "source": "Daum"}, {"title": "‘여고생 참변’ 은마아파트 화재 유족…‘법왜곡죄’로 수사 담당자 고소 왜?", "desc": "지난 2월 서울 강남구 대치동 은마아파트에서 발생해 고등학생 1명이 숨지고 3명이 다친 화재와 관련", "src": "문화일보", "url": "http://v.daum.net/v/20260728234639974", "ts": "20260728234639", "time": "07/28 23:46", "source": "Daum"}, {"title": "서울 구로구 단독주택서 화재‥인명피해 없어", "desc": "오늘 저녁 7시쯤 서울 구로구의 한 단독주택 2층에서 불이 나 20여 분 만에 꺼졌습니다. 화재 직후 주민들이 대피해 다친 사람은 없었", "src": "", "url": "http://v.daum.net/v/20260728213654601", "ts": "20260728213654", "time": "07/28 21:36", "source": "Daum"}], "sido": [{"name": "전국", "short": "전국", "rcpt": 123, "prog": 110, "life": 0, "prpt": 0}, {"name": "경기도", "short": "경기", "rcpt": 55, "prog": 52, "life": 0, "prpt": 0}, {"name": "인천광역시", "short": "인천", "rcpt": 13, "prog": 13, "life": 0, "prpt": 0}, {"name": "경상남도", "short": "경남", "rcpt": 9, "prog": 7, "life": 0, "prpt": 0}, {"name": "서울특별시", "short": "서울", "rcpt": 8, "prog": 6, "life": 0, "prpt": 0}, {"name": "전남광주통합특별시", "short": "전남·광주", "rcpt": 7, "prog": 7, "life": 0, "prpt": 0}, {"name": "전라북도", "short": "전북", "rcpt": 6, "prog": 3, "life": 0, "prpt": 0}, {"name": "부산광역시", "short": "부산", "rcpt": 4, "prog": 4, "life": 0, "prpt": 0}, {"name": "강원도", "short": "강원", "rcpt": 4, "prog": 3, "life": 0, "prpt": 0}, {"name": "충청북도", "short": "충북", "rcpt": 4, "prog": 4, "life": 0, "prpt": 0}, {"name": "충청남도", "short": "충남", "rcpt": 4, "prog": 2, "life": 0, "prpt": 0}, {"name": "대전광역시", "short": "대전", "rcpt": 3, "prog": 3, "life": 0, "prpt": 0}, {"name": "세종특별자치시", "short": "세종", "rcpt": 2, "prog": 2, "life": 0, "prpt": 0}, {"name": "대구광역시", "short": "대구", "rcpt": 1, "prog": 1, "life": 0, "prpt": 0}, {"name": "울산광역시", "short": "울산", "rcpt": 1, "prog": 1, "life": 0, "prpt": 0}, {"name": "경상북도", "short": "경북", "rcpt": 1, "prog": 1, "life": 0, "prpt": 0}, {"name": "제주특별자치도", "short": "제주", "rcpt": 1, "prog": 1, "life": 0, "prpt": 0}], "total": {"rcpt": 123, "prog": 110, "life": 0, "prpt": 0}, "matched": 0, "b14Count": 0, "lifePrptAvailable": false};
 
-const liveItems = [{"type": "화재 (대형화재(시장,공장)) (1차출동)", "loc": "대구광역시 달성군 현풍읍 중리", "time": "2026/07/27 23:01", "lat": 35.69132870555185, "lng": 128.45543031906413, "region": "대구", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 화성시 동탄구 반송동", "time": "2026/07/27 22:46", "lat": 37.20493703089991, "lng": 127.06887289907559, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 용인시 처인구 역북동", "time": "2026/07/27 22:41", "lat": 37.23835443407786, "lng": 127.1876413647778, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 고양시 덕양구 행신동", "time": "2026/07/27 22:38", "lat": 37.62204197347716, "lng": 126.83593365406504, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (고층건물(3층이상,아파트)) (1차출동)", "loc": "제주특별자치도 제주시 삼도이동", "time": "2026/07/27 22:23", "lat": 33.05914793426069, "lng": 126.5253195331608, "region": "제주", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (2차출동)", "loc": "서울특별시 서초구 우면동", "time": "2026/07/27 22:20", "lat": 37.45746001397158, "lng": 127.02291027531157, "region": "서울", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 광명시 광명동", "time": "2026/07/27 22:18", "lat": 37.48720790729814, "lng": 126.8644400082311, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (2차출동)", "loc": "서울특별시 용산구 청파동2가", "time": "2026/07/27 22:15", "lat": 37.54680943777066, "lng": 126.96382265313837, "region": "서울", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "충청남도 서천군 마서면 덕암리", "time": "2026/07/27 22:14", "lat": 36.03815050973176, "lng": 126.70895589374311, "region": "충남", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 시흥시 정왕동", "time": "2026/07/27 22:02", "lat": 37.35451742932145, "lng": 126.72546414070335, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 부천시 원미구 춘의동", "time": "2026/07/27 22:01", "lat": 37.5036844430942, "lng": 126.78881749803693, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 안산시 상록구 팔곡이동", "time": "2026/07/27 21:54", "lat": 37.29543066476083, "lng": 126.8866196107598, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "인천광역시 옹진군 자월면 자월리", "time": "2026/07/27 21:50", "lat": 37.24812002529609, "lng": 126.32315674364442, "region": "인천", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "충청남도 예산군 예산읍 관작리", "time": "2026/07/27 21:49", "lat": 36.71195162685725, "lng": 126.8317334706949, "region": "충남", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 평택시 서정동", "time": "2026/07/27 21:48", "lat": 37.07283873380209, "lng": 127.05706947555711, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상북도 경산시 중방동", "time": "2026/07/27 21:47", "lat": 35.82687014829198, "lng": 128.73541145313877, "region": "경북", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 용인시 처인구 이동읍 송전리", "time": "2026/07/27 21:38", "lat": 37.13807696284025, "lng": 127.19831062549439, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 평택시 신대동", "time": "2026/07/27 21:35", "lat": 37.00101331744993, "lng": 127.05829649651959, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "전남광주통합특별시 광산구 수완동", "time": "2026/07/27 21:34", "lat": 35.203127207315106, "lng": 126.82712886082732, "region": "전남·광주", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "전남광주통합특별시 서구 화정동", "time": "2026/07/27 21:31", "lat": 35.15152068089609, "lng": 126.87532868203441, "region": "전남·광주", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (2차출동)", "loc": "서울특별시 강남구 개포동", "time": "2026/07/27 21:28", "lat": 37.482156691234756, "lng": 127.06920568836983, "region": "서울", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "제주특별자치도 제주시 구좌읍 종달리", "time": "2026/07/27 21:28", "lat": 33.04616045801493, "lng": 126.91055038286055, "region": "제주", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "전남광주통합특별시 영암군 미암면 미암리", "time": "2026/07/27 21:27", "lat": 34.697523267096734, "lng": 126.58809516578067, "region": "전남·광주", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 포천시 동교동", "time": "2026/07/27 21:26", "lat": 37.83934433105596, "lng": 127.13004445406256, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (2차출동)", "loc": "서울특별시 마포구 동교동", "time": "2026/07/27 21:22", "lat": 37.557163465810234, "lng": 126.92791823962277, "region": "서울", "match": true, "nfds_time": "21:22"}, {"type": "화재 (고층건물(3층이상,아파트)) (1차출동)", "loc": "경기도 용인시 기흥구 언남동", "time": "2026/07/27 21:17", "lat": 37.29401281461399, "lng": 127.12550216278672, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 김포시 구래동", "time": "2026/07/27 21:09", "lat": 37.645705482643876, "lng": 126.61907461788968, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상남도 창원시 진해구 남문동", "time": "2026/07/27 21:07", "lat": 35.11081116731859, "lng": 128.75367301406888, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 시흥시 은행동", "time": "2026/07/27 21:05", "lat": 37.43744331665735, "lng": 126.79452923855061, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "충청남도 서천군 마서면 덕암리", "time": "2026/07/27 20:52", "lat": 36.03861900754928, "lng": 126.7088986883056, "region": "충남", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상북도 영주시 순흥면 읍내리", "time": "2026/07/27 20:52", "lat": 36.011494131117345, "lng": 128.5593860855085, "region": "경북", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (2차출동)", "loc": "서울특별시 마포구 합정동", "time": "2026/07/27 20:51", "lat": 37.54849740802939, "lng": 126.91657635434657, "region": "서울", "match": true, "nfds_time": "20:51"}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경상북도 포항시 북구 송라면 화진리", "time": "2026/07/27 20:51", "lat": 36.24233533087508, "lng": 129.38161483447718, "region": "경북", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 오산시 원동", "time": "2026/07/27 20:48", "lat": 37.14324145115805, "lng": 127.06937970387901, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 이천시 백사면 도립리", "time": "2026/07/27 20:45", "lat": 37.34168284705661, "lng": 127.47938163163178, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "전남광주통합특별시 동구 학동", "time": "2026/07/27 20:42", "lat": 35.13927437002535, "lng": 126.92233348946559, "region": "전남·광주", "match": true, "nfds_time": "20:42"}, {"type": "화재 (대형화재(시장,공장)) (1차출동)", "loc": "경상남도 함안군 법수면 대송리", "time": "2026/07/27 20:37", "lat": 35.34718796901436, "lng": 128.3372509332342, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경상북도 안동시 예안면 구룡리", "time": "2026/07/27 20:37", "lat": 35.73761746355062, "lng": 128.92180898242052, "region": "경북", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (2차출동)", "loc": "서울특별시 도봉구 도봉동", "time": "2026/07/27 20:32", "lat": 37.67190805330019, "lng": 127.04684755016208, "region": "서울", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상북도 김천시 감천면 용호리", "time": "2026/07/27 20:32", "lat": 36.03785220186048, "lng": 128.1237054030118, "region": "경북", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 고양시 일산동구 장항동", "time": "2026/07/27 20:32", "lat": 37.66350709428315, "lng": 126.76738686173373, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (고층건물(3층이상,아파트)) (1차출동)", "loc": "부산광역시 강서구 신호동", "time": "2026/07/27 20:30", "lat": 35.082876022632554, "lng": 128.87570161105032, "region": "부산", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 김포시 대곶면 석정리", "time": "2026/07/27 20:27", "lat": 37.68313379938814, "lng": 126.55523944621706, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "대전광역시 서구 도안동", "time": "2026/07/27 20:22", "lat": 36.31932344191715, "lng": 127.34608417519519, "region": "대전", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 수원시 권선구 고색동", "time": "2026/07/27 20:19", "lat": 37.244701577638025, "lng": 126.98704996327355, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (2차출동)", "loc": "서울특별시 용산구 이태원동", "time": "2026/07/27 20:16", "lat": 37.534182885237705, "lng": 126.99577983257855, "region": "서울", "match": true, "nfds_time": "20:16"}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 고양시 덕양구 동산동", "time": "2026/07/27 20:12", "lat": 37.64816531086299, "lng": 126.89444811864041, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 화성시 병점구 반월동", "time": "2026/07/27 20:05", "lat": 37.22221917521588, "lng": 127.05105238808954, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "인천광역시 서해구 가정동", "time": "2026/07/27 20:04", "lat": 37.515977175828404, "lng": 126.678327624697, "region": "인천", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "전라북도 정읍시 수성동", "time": "2026/07/27 19:55", "lat": 35.57824589560677, "lng": 126.85173433937543, "region": "전북", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (2차출동)", "loc": "서울특별시 종로구 교북동", "time": "2026/07/27 19:52", "lat": 37.57305419673212, "lng": 126.95985928180225, "region": "서울", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "전라북도 고창군 대산면 광대리", "time": "2026/07/27 19:50", "lat": 35.36576066449035, "lng": 126.55920084373956, "region": "전북", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상남도 함안군 대산면 하기리", "time": "2026/07/27 19:46", "lat": 35.35471858836212, "lng": 128.41591089110761, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 평택시 지산동", "time": "2026/07/27 19:44", "lat": 37.08334061049913, "lng": 127.08053810142793, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "대구광역시 동구 신암동", "time": "2026/07/27 19:43", "lat": 35.88195323162819, "lng": 128.62415569205425, "region": "대구", "match": true, "nfds_time": "19:43"}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 파주시 조리읍 뇌조리", "time": "2026/07/27 19:39", "lat": 37.75303443411639, "lng": 126.8114976785411, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 양평군 강상면 송학리", "time": "2026/07/27 19:34", "lat": 37.47576672745355, "lng": 127.46932724658208, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "전라북도 완주군 삼례읍 석전리", "time": "2026/07/27 19:32", "lat": 35.925995755562326, "lng": 127.11140429172487, "region": "전북", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 고양시 일산동구 성석동", "time": "2026/07/27 19:25", "lat": 37.70663905211629, "lng": 126.8032574681247, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 안산시 단원구 선부동", "time": "2026/07/27 19:21", "lat": 37.343285392490344, "lng": 126.80445764743774, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "울산광역시 남구 신정동", "time": "2026/07/27 19:19", "lat": 35.54602001826313, "lng": 129.3221074339843, "region": "울산", "match": true, "nfds_time": "19:19"}, {"type": "화재 (기타화재) (1차출동)", "loc": "충청남도 보령시 주산면 동오리", "time": "2026/07/27 19:18", "lat": 36.244375755612026, "lng": 126.63999503714241, "region": "충남", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상북도 예천군 유천면 초적리", "time": "2026/07/27 19:14", "lat": 36.61803467362297, "lng": 128.36388955144275, "region": "경북", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상북도 경주시 외동읍 녹동리", "time": "2026/07/27 19:13", "lat": 35.66054263732011, "lng": 129.28497733537927, "region": "경북", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경상남도 함안군 법수면 대송리", "time": "2026/07/27 19:11", "lat": 35.341147233759585, "lng": 128.33175078166096, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상남도 함안군 법수면 대송리", "time": "2026/07/27 19:11", "lat": 35.34118359381638, "lng": 128.3309044410824, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "부산광역시 사상구 덕포동", "time": "2026/07/27 18:57", "lat": 35.17057287483218, "lng": 128.98254764038367, "region": "부산", "match": true, "nfds_time": "18:57"}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "전라북도 익산시 웅포면 제성리", "time": "2026/07/27 18:53", "lat": 36.11598710046679, "lng": 126.90240081274764, "region": "전북", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 광주시 초월읍 신월리", "time": "2026/07/27 18:53", "lat": 37.39929481180311, "lng": 127.3122283233157, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (2차출동)", "loc": "서울특별시 용산구 이태원동", "time": "2026/07/27 18:51", "lat": 37.53447087540001, "lng": 126.9902132470426, "region": "서울", "match": true, "nfds_time": "18:51"}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경상남도 김해시 한림면 금곡리", "time": "2026/07/27 18:49", "lat": 35.3493966699654, "lng": 128.80989789868767, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (2차출동)", "loc": "서울특별시 중구 명동2가", "time": "2026/07/27 18:46", "lat": 37.563491161909766, "lng": 126.9825807476202, "region": "서울", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경상남도 거제시 장평동", "time": "2026/07/27 18:43", "lat": 34.889687941829905, "lng": 128.60871282033858, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "인천광역시 서해구 경서동", "time": "2026/07/27 18:35", "lat": 37.55451892982964, "lng": 126.65496188526771, "region": "인천", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 화성시 만세구 남양읍 신남리", "time": "2026/07/27 18:34", "lat": 37.193865895158275, "lng": 126.8215693934317, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "울산광역시 동구 서부동", "time": "2026/07/27 18:33", "lat": 35.52951215042673, "lng": 129.4322444127204, "region": "울산", "match": true, "nfds_time": "18:33"}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 부천시 소사구 심곡본동", "time": "2026/07/27 18:30", "lat": 37.4827723276857, "lng": 126.77908507632165, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경상남도 함안군 칠원읍 예곡리", "time": "2026/07/27 18:28", "lat": 35.27579335003933, "lng": 128.53156935021954, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 하남시 덕풍동", "time": "2026/07/27 18:24", "lat": 37.54335204639186, "lng": 127.19756865524917, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "제주특별자치도 서귀포시 서호동", "time": "2026/07/27 18:20", "lat": 33.248370769469375, "lng": 126.52879528978396, "region": "제주", "match": true, "nfds_time": "18:20"}, {"type": "화재 (기타화재) (2차출동)", "loc": "서울특별시 영등포구 신길동", "time": "2026/07/27 18:20", "lat": 37.50874083093019, "lng": 126.9233954750053, "region": "서울", "match": true, "nfds_time": "18:20"}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 용인시 기흥구 동백동", "time": "2026/07/27 18:17", "lat": 37.28363139621233, "lng": 127.14998874791533, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "인천광역시 서해구 가정동", "time": "2026/07/27 18:15", "lat": 37.5169811336273, "lng": 126.6731652818184, "region": "인천", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 용인시 기흥구 중동", "time": "2026/07/27 18:10", "lat": 37.2818467677831, "lng": 127.14317436408216, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 안양시 만안구 안양동", "time": "2026/07/27 18:04", "lat": 37.393282062634064, "lng": 126.93347347077648, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 화성시 동탄구 반송동", "time": "2026/07/27 17:59", "lat": 37.20497001026269, "lng": 127.07395334881417, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 파주시 법원읍 법원리", "time": "2026/07/27 17:58", "lat": 37.854500360253446, "lng": 126.88034869863866, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 부천시 원미구 상동", "time": "2026/07/27 17:48", "lat": 37.4939824860369, "lng": 126.75263650347401, "region": "경기", "match": true, "nfds_time": "17:48"}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 광주시 목현동", "time": "2026/07/27 17:44", "lat": 37.43539495176232, "lng": 127.22210890332364, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (2차출동)", "loc": "서울특별시 금천구 시흥동", "time": "2026/07/27 17:41", "lat": 37.45407711180405, "lng": 126.89993171408003, "region": "서울", "match": true, "nfds_time": "17:41"}, {"type": "화재 (고층건물(3층이상,아파트)) (1차출동)", "loc": "경상남도 양산시 물금읍 가촌리", "time": "2026/07/27 17:40", "lat": 35.310815217258835, "lng": 129.00640249241857, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "충청북도 청주시 청원구 오창읍 각리", "time": "2026/07/27 17:34", "lat": 36.70920594158518, "lng": 127.41659896700754, "region": "충북", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경상남도 밀양시 초동면 덕산리", "time": "2026/07/27 17:30", "lat": 35.44441627807492, "lng": 128.6867338859032, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "전남광주통합특별시 여수시 중앙동", "time": "2026/07/27 17:22", "lat": 34.73739289576425, "lng": 127.74132097651128, "region": "전남·광주", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상남도 남해군 남면 죽전리", "time": "2026/07/27 17:19", "lat": 34.768581933728186, "lng": 127.88431224910619, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "울산광역시 울주군 서생면 진하리", "time": "2026/07/27 17:17", "lat": 35.38569216087216, "lng": 129.34451388003356, "region": "울산", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (2차출동)", "loc": "서울특별시 강북구 미아동", "time": "2026/07/27 17:07", "lat": 37.62795577458527, "lng": 127.0248316795339, "region": "서울", "match": true, "nfds_time": "17:07"}, {"type": "화재 (기타화재) (1차출동)", "loc": "울산광역시 동구 화정동", "time": "2026/07/27 16:55", "lat": 35.49662288652225, "lng": 129.4278364807655, "region": "울산", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "울산광역시 동구 일산동", "time": "2026/07/27 16:55", "lat": 35.49478708884207, "lng": 129.4402203236167, "region": "울산", "match": true, "nfds_time": "16:55"}, {"type": "화재 (기타화재) (1차출동)", "loc": "충청남도 논산시 연무읍 동산리", "time": "2026/07/27 16:50", "lat": 36.1317025212938, "lng": 127.0997405440436, "region": "충남", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 남양주시 도농동", "time": "2026/07/27 16:50", "lat": 37.604984394893464, "lng": 127.15201323522754, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "충청남도 천안시 동남구 풍세면 가송리", "time": "2026/07/27 16:49", "lat": 36.72746906089307, "lng": 127.14784776583754, "region": "충남", "match": false, "nfds_time": null}, {"type": "화재 (산불) (1차출동)", "loc": "전라북도 고창군 대산면 대장리", "time": "2026/07/27 16:47", "lat": 35.33387718523632, "lng": 126.53417516030846, "region": "전북", "match": false, "nfds_time": null}, {"type": "화재 (고층건물(3층이상,아파트)) (1차출동)", "loc": "전라북도 전주시 덕진구 송천동2가", "time": "2026/07/27 16:44", "lat": 35.86691658495123, "lng": 127.11386818853833, "region": "전북", "match": true, "nfds_time": "16:44"}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 이천시 단월동", "time": "2026/07/27 16:43", "lat": 37.21691002122253, "lng": 127.4489826893546, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "인천광역시 미추홀구 도화동", "time": "2026/07/27 16:39", "lat": 37.45996197820746, "lng": 126.67512034556006, "region": "인천", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상남도 함안군 법수면 우거리", "time": "2026/07/27 16:36", "lat": 35.31404401116943, "lng": 128.35147200170545, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 고양시 덕양구 향동동", "time": "2026/07/27 16:35", "lat": 37.60005189699375, "lng": 126.89364417297014, "region": "경기", "match": true, "nfds_time": "16:35"}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 수원시 권선구 금곡동", "time": "2026/07/27 16:31", "lat": 37.26940859782617, "lng": 126.95306474205587, "region": "경기", "match": true, "nfds_time": "16:31"}, {"type": "화재 (대형화재(시장,공장)) (1차출동)", "loc": "대구광역시 남구 대명동", "time": "2026/07/27 16:29", "lat": 35.85721430800455, "lng": 128.57701436533674, "region": "대구", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 광명시 광명동", "time": "2026/07/27 16:21", "lat": 37.47370386982524, "lng": 126.851192343453, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 고양시 일산동구 백석동", "time": "2026/07/27 16:17", "lat": 37.64181479965898, "lng": 126.78829112853215, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경상북도 경주시 외동읍 죽동리", "time": "2026/07/27 16:11", "lat": 35.732856629610694, "lng": 129.30549731170316, "region": "경북", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "대전광역시 중구 문화동", "time": "2026/07/27 16:10", "lat": 36.30905412590256, "lng": 127.39965128336145, "region": "대전", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "강원도 삼척시 노곡면 여삼리", "time": "2026/07/27 16:09", "lat": 37.3771805503157, "lng": 129.13432583082317, "region": "강원", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "부산광역시 부산진구 전포동", "time": "2026/07/27 16:07", "lat": 35.160074249977576, "lng": 129.0666344216963, "region": "부산", "match": true, "nfds_time": "16:07"}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 김포시 통진읍 서암리", "time": "2026/07/27 16:07", "lat": 37.69522233223424, "lng": 126.59716493250674, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "강원도 속초시 청호동", "time": "2026/07/27 16:05", "lat": 37.29411055656783, "lng": 128.57792877429927, "region": "강원", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 김포시 운양동", "time": "2026/07/27 15:58", "lat": 37.65066543753339, "lng": 126.67478998813256, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 시흥시 정왕동", "time": "2026/07/27 15:49", "lat": 37.3407484167784, "lng": 126.72489359392846, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상북도 구미시 선산읍 교리", "time": "2026/07/27 15:48", "lat": 36.257019035775514, "lng": 128.29934001805566, "region": "경북", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 수원시 팔달구 매교동", "time": "2026/07/27 15:47", "lat": 37.269263873604544, "lng": 127.01419442187651, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "충청북도 제천시 신백동", "time": "2026/07/27 15:45", "lat": 37.12976704796759, "lng": 128.22687936227373, "region": "충북", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 평택시 통복동", "time": "2026/07/27 15:44", "lat": 36.98952042134085, "lng": 127.08067497009417, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 김포시 양촌읍 학운리", "time": "2026/07/27 15:43", "lat": 37.61284815161865, "lng": 126.6195254297762, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "인천광역시 강화군 선원면 창리", "time": "2026/07/27 15:28", "lat": 37.73196969940229, "lng": 126.49147754871518, "region": "인천", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 수원시 영통구 매탄동", "time": "2026/07/27 15:27", "lat": 37.259804245139556, "lng": 127.04499035032107, "region": "경기", "match": true, "nfds_time": "15:25"}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 수원시 영통구 매탄동", "time": "2026/07/27 15:25", "lat": 37.25991240447697, "lng": 127.04490023091404, "region": "경기", "match": true, "nfds_time": "15:25"}, {"type": "화재 (대형화재(시장,공장)) (1차출동)", "loc": "대구광역시 서구 중리동", "time": "2026/07/27 15:25", "lat": 35.86647098127982, "lng": 128.54076309647516, "region": "대구", "match": true, "nfds_time": "15:25"}, {"type": "화재 (대형화재(시장,공장)) (1차출동)", "loc": "충청북도 제천시 동현동", "time": "2026/07/27 15:22", "lat": 37.12904846632166, "lng": 128.22055492557715, "region": "충북", "match": true, "nfds_time": "15:22"}, {"type": "화재 (일반화재(차량,주택)) (2차출동)", "loc": "서울특별시 송파구 송파동", "time": "2026/07/27 15:18", "lat": 37.51079837596081, "lng": 127.10716783458406, "region": "서울", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경상남도 남해군 고현면 대곡리", "time": "2026/07/27 15:15", "lat": 34.87021161357799, "lng": 127.88679893017753, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 화성시 만세구 새솔동", "time": "2026/07/27 15:13", "lat": 37.27746225814488, "lng": 126.82585994132204, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "강원도 강릉시 연곡면 영진리", "time": "2026/07/27 15:12", "lat": 36.966493099856216, "lng": 128.82307741053896, "region": "강원", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "인천광역시 검단구 마전동", "time": "2026/07/27 15:08", "lat": 37.60985345510378, "lng": 126.66921441012254, "region": "인천", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (2차출동)", "loc": "서울특별시 성북구 삼선동4가", "time": "2026/07/27 15:04", "lat": 37.590332181970695, "lng": 127.01447030330505, "region": "서울", "match": true, "nfds_time": "15:04"}, {"type": "화재 (일반화재(차량,주택)) (2차출동)", "loc": "서울특별시 노원구 공릉동", "time": "2026/07/27 14:59", "lat": 37.61868868315788, "lng": 127.07769130291553, "region": "서울", "match": true, "nfds_time": "14:59"}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 양주시 백석읍 복지리", "time": "2026/07/27 14:43", "lat": 37.78783584073516, "lng": 126.98985070120118, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (2차출동)", "loc": "서울특별시 서초구 양재동", "time": "2026/07/27 14:43", "lat": 37.47297020430616, "lng": 127.04195243984266, "region": "서울", "match": true, "nfds_time": "14:43"}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상북도 칠곡군 약목면 복성리", "time": "2026/07/27 14:37", "lat": 36.037316290550244, "lng": 128.35909690536474, "region": "경북", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "전남광주통합특별시 보성군 벌교읍 장양리", "time": "2026/07/27 14:35", "lat": 34.83677262506174, "lng": 127.36399099947258, "region": "전남·광주", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 파주시 금촌동", "time": "2026/07/27 14:33", "lat": 37.756938291024376, "lng": 126.77220120160801, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "대구광역시 달성군 논공읍 북리", "time": "2026/07/27 14:25", "lat": 35.72840650356213, "lng": 128.44770512215007, "region": "대구", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경상남도 김해시 흥동", "time": "2026/07/27 14:13", "lat": 35.222642898301956, "lng": 128.86752461467955, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 양평군 단월면 석산리", "time": "2026/07/27 14:13", "lat": 37.64639609536317, "lng": 127.61618331828657, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상북도 칠곡군 왜관읍 낙산리", "time": "2026/07/27 14:12", "lat": 35.94956129141863, "lng": 128.4145026124026, "region": "경북", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 양평군 단월면 석산리", "time": "2026/07/27 14:10", "lat": 37.64619777206885, "lng": 127.61620434172772, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (고층건물(3층이상,아파트)) (1차출동)", "loc": "경상남도 양산시 신기동", "time": "2026/07/27 14:09", "lat": 35.35356365990552, "lng": 129.04149231295273, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "강원도 홍천군 서면 중방대리", "time": "2026/07/27 14:07", "lat": 37.64639633208016, "lng": 127.61613799642991, "region": "강원", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상북도 영천시 화남면 대천리", "time": "2026/07/27 14:07", "lat": 36.04789791480373, "lng": 128.90889781731866, "region": "경북", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경상남도 사천시 사천읍 수석리", "time": "2026/07/27 14:05", "lat": 35.08416540745851, "lng": 128.08716927958153, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "대구광역시 달성군 옥포읍 본리리", "time": "2026/07/27 14:05", "lat": 35.79574666923029, "lng": 128.45705602583112, "region": "대구", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상남도 창원시 마산합포구 오동동", "time": "2026/07/27 14:03", "lat": 35.20781619600331, "lng": 128.57693793573796, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "울산광역시 북구 신천동", "time": "2026/07/27 14:01", "lat": 35.64280961817637, "lng": 129.35005148695836, "region": "울산", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (2차출동)", "loc": "서울특별시 강북구 미아동", "time": "2026/07/27 13:55", "lat": 37.61940638999352, "lng": 127.01960707800296, "region": "서울", "match": false, "nfds_time": null}, {"type": "화재 (고층건물(3층이상,아파트)) (1차출동)", "loc": "대구광역시 서구 비산동", "time": "2026/07/27 13:41", "lat": 35.871870456790106, "lng": 128.56917815728414, "region": "대구", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상북도 경주시 문무대왕면 장항리", "time": "2026/07/27 13:26", "lat": 35.79671842613027, "lng": 129.39053255697294, "region": "경북", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "부산광역시 강서구 대저1동", "time": "2026/07/27 13:22", "lat": 35.22209465670584, "lng": 128.94523188434886, "region": "부산", "match": false, "nfds_time": null}, {"type": "화재 (고층건물(3층이상,아파트)) (1차출동)", "loc": "대구광역시 달서구 성당동", "time": "2026/07/27 13:18", "lat": 35.83790412208707, "lng": 128.55686631053624, "region": "대구", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상남도 함안군 법수면 사정리", "time": "2026/07/27 13:16", "lat": 35.35942996600501, "lng": 128.32470185588204, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "충청남도 태안군 안면읍 신야리", "time": "2026/07/27 13:13", "lat": 36.45311432555543, "lng": 126.33537232906518, "region": "충남", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상남도 함안군 법수면 백산리", "time": "2026/07/27 13:13", "lat": 35.341130573515265, "lng": 128.34950316016824, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "충청남도 아산시 도고면 기곡리", "time": "2026/07/27 13:07", "lat": 36.75938415342662, "lng": 126.88210508190338, "region": "충남", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 안산시 상록구 본오동", "time": "2026/07/27 13:07", "lat": 37.29622540498014, "lng": 126.8628097630717, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 평택시 고덕동", "time": "2026/07/27 13:03", "lat": 37.05453404836513, "lng": 127.04521739731021, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "전남광주통합특별시 해남군 황산면 부곡리", "time": "2026/07/27 13:03", "lat": 34.57425924121643, "lng": 126.39489368252819, "region": "전남·광주", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경기도 파주시 조리읍 봉일천리", "time": "2026/07/27 12:43", "lat": 37.74495194168803, "lng": 126.80544800874006, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "전남광주통합특별시 완도군 완도읍 군내리", "time": "2026/07/27 12:37", "lat": 34.31648524806177, "lng": 126.74968727059563, "region": "전남·광주", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 남양주시 진건읍 진관리", "time": "2026/07/27 12:21", "lat": 37.640601050078864, "lng": 127.15836272497165, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 부천시 원미구 심곡동", "time": "2026/07/27 12:20", "lat": 37.489942374961025, "lng": 126.78288587144807, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "인천광역시 남동구 남촌동", "time": "2026/07/27 12:20", "lat": 37.415280824865995, "lng": 126.70251460814953, "region": "인천", "match": true, "nfds_time": "12:20"}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 남양주시 진접읍 장현리", "time": "2026/07/27 12:17", "lat": 37.719726533468965, "lng": 127.18219098568579, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경상남도 진주시 수곡면 원내리", "time": "2026/07/27 12:15", "lat": 35.17848861855357, "lng": 127.94175172562389, "region": "경남", "match": false, "nfds_time": null}, {"type": "화재 (기타화재) (1차출동)", "loc": "경기도 남양주시 다산동", "time": "2026/07/27 12:12", "lat": 37.61527990144892, "lng": 127.16091407875668, "region": "경기", "match": false, "nfds_time": null}, {"type": "화재 (고층건물(3층이상,아파트)) (1차출동)", "loc": "전남광주통합특별시 광산구 신가동", "time": "2026/07/27 12:02", "lat": 35.18372440722247, "lng": 126.82319559540282, "region": "전남·광주", "match": true, "nfds_time": "12:02"}, {"type": "화재 (일반화재(차량,주택)) (1차출동)", "loc": "경상남도 창원시 성산구 상남동", "time": "2026/07/27 11:55", "lat": 35.224343230134465, "lng": 128.68538416354656, "region": "경남", "match": true, "nfds_time": "11:55"}];
-const newsItems = [{"title": "제천서 공장 불…1시간 20분 만에 꺼져", "desc": "", "src": "Daum뉴스", "source": "Daum", "time": "07/27 22:25", "url": "http://v.daum.net/v/20260727222512443"}, {"title": "아파트 배전반 화재...90세대 정전·100명 대피", "desc": "", "src": "Daum뉴스", "source": "Daum", "time": "07/27 21:27", "url": "http://v.daum.net/v/20260727212712782"}, {"title": "동래구 아파트 화재..에어컨 발화 추정", "desc": "", "src": "Daum뉴스", "source": "Daum", "time": "07/27 21:00", "url": "http://v.daum.net/v/20260727210037435"}, {"title": "폭염 속 에어컨 실외기 화재 급증‥공동주택이 더 취약", "desc": "", "src": "Daum뉴스", "source": "Daum", "time": "07/27 20:07", "url": "http://v.daum.net/v/20260727200710429"}, {"title": "전남광주 북구 아파트 배전반 화재…30가구 복구 2주", "desc": "", "src": "Daum뉴스", "source": "Daum", "time": "07/27 19:30", "url": "http://v.daum.net/v/20260727193047839"}, {"title": "제천 막걸리 제조공장서 화재, 3명 대피…인명피해 없어", "desc": "", "src": "Daum뉴스", "source": "Daum", "time": "07/27 18:43", "url": "http://v.daum.net/v/20260727184338995"}, {"title": "중기부, 영천시장 폭염·화재 안전점검…전통시장 화재예방 강화", "desc": "", "src": "Daum뉴스", "source": "Daum", "time": "07/27 17:55", "url": "http://v.daum.net/v/20260727175537473"}, {"title": "서산 읍내동 숙박시설서 불..투숙객 53명 대피 소동", "desc": "", "src": "Daum뉴스", "source": "Daum", "time": "07/27 17:12", "url": "http://v.daum.net/v/20260727171237767"}, {"title": "요양원 멀티탭서 불…직원이 소화기로 초기 진화", "desc": "", "src": "Daum뉴스", "source": "Daum", "time": "07/27 15:27", "url": "http://v.daum.net/v/20260727152749491"}, {"title": "인천 서해구, 쿠팡에 물류센터 화재 피해 주민 전체·선별 보상 요구", "desc": "", "src": "Daum뉴스", "source": "Daum", "time": "07/27 14:38", "url": "http://v.daum.net/v/20260727143809185"}, {"title": "부천 요양원서 불…직원이 소화기로 큰 피해 막아", "desc": "", "src": "Daum뉴스", "source": "Daum", "time": "07/27 14:03", "url": "http://v.daum.net/v/20260727140353715"}, {"title": "‘불쏘시개’ 널린 초대형 물류센터…전국 21곳인데 안전교육 허술", "desc": "", "src": "Daum뉴스", "source": "Daum", "time": "07/27 13:39", "url": "http://v.daum.net/v/20260727133907840"}];
-const sidoData = {"total": {"prog": 168, "life": 4, "prpt": 288047}, "sido": [{"label": "경기", "prog": 71, "life": 0, "prpt": 92662}, {"label": "인천", "prog": 19, "life": 0, "prpt": 317}, {"label": "전남·광주", "prog": 13, "life": 0, "prpt": 22489}, {"label": "충북", "prog": 12, "life": 0, "prpt": 6208}, {"label": "경북", "prog": 11, "life": 0, "prpt": 2270}, {"label": "경남", "prog": 11, "life": 1, "prpt": 18278}, {"label": "충남", "prog": 8, "life": 2, "prpt": 4653}, {"label": "서울", "prog": 5, "life": 1, "prpt": 64276}, {"label": "전북", "prog": 5, "life": 0, "prpt": 1515}, {"label": "부산", "prog": 4, "life": 0, "prpt": 510}, {"label": "대전", "prog": 3, "life": 0, "prpt": 16062}, {"label": "강원", "prog": 2, "life": 0, "prpt": 8176}, {"label": "대구", "prog": 1, "life": 0, "prpt": 45667}, {"label": "울산", "prog": 1, "life": 0, "prpt": 4964}, {"label": "세종", "prog": 1, "life": 0, "prpt": 0}, {"label": "제주", "prog": 1, "life": 0, "prpt": 0}]};
-const nfdsSummary = {matched: 29, total: 176, hidden: 147};
-const meta = {
-  snapshotTime: '2026-07-27 23:05',
-  todayDate: '2026-07-27',
-  statsDate: '2026-07-26',
-  b14Total: 103,
-  b14Only: 75,
-  vehicleExcluded: 23
-};
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function nf(n){return Number(n||0).toLocaleString('ko-KR');}
 
+/* banner */
+document.getElementById('kR').innerHTML = nf(DATA.total.rcpt)+'<span class="un">건</span>';
+document.getElementById('kP').innerHTML = nf(DATA.total.prog)+'<span class="un">건</span>';
+document.getElementById('kL').innerHTML = (DATA.lifePrptAvailable? nf(DATA.total.life):'미집계')+(DATA.lifePrptAvailable?'<span class="un">명</span>':'');
+document.getElementById('kD').innerHTML = (DATA.lifePrptAvailable? nf(DATA.total.prpt):'미집계')+(DATA.lifePrptAvailable?'<span class="un">천원</span>':'');
 
-let showAll = false;
-let selectedRegion = '전체';
-let currentPage = 1;
-const PAGE_SIZE = 8;
-let map, markerLayer;
+var bn = '실시간 '+DATA.liveItems.length+'건 수집(차량 단독화재 제외) · 뉴스 '+DATA.news.length+'건';
+if(!DATA.lifePrptAvailable){ bn += ' · 인명/재산 피해는 소방청 API에서 당일 미집계 상태(0건 응답)라 표시하지 않습니다.'; }
+if(DATA.b14Count===0){ bn += ' · NFDS 일일화재현황(B14)은 자정 리셋으로 0건이라 대조 불가.'; }
+document.getElementById('bnote').textContent = bn;
 
-function fmtNum(n) { return n.toLocaleString('ko-KR'); }
+document.getElementById('matchline').textContent =
+ '국민안전24 '+DATA.liveItems.length+'건 중 '+DATA.matched+'건 NFDS 공식기록과 일치(±30분·동읍면 기준)'+
+ (DATA.b14Count===0?' — B14 0건으로 이번 회차는 전부 미확인':'');
 
-function renderBanner() {
-  document.getElementById('bannerProg').textContent = fmtNum(sidoData.total.prog) + '건';
-  document.getElementById('bannerLife').innerHTML = fmtNum(sidoData.total.life) + '<span class="unit">명</span>';
-  document.getElementById('bannerPrpt').innerHTML = fmtNum(sidoData.total.prpt) + '<span class="unit">천원</span>';
+/* map */
+var map=null, layer=null, mapOK=true;
+try{
+  map = L.map('map',{scrollWheelZoom:false}).setView([36.4,127.9],7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+   {maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);
+  layer = L.layerGroup().addTo(map);
+}catch(e){ mapOK=false; document.getElementById('map').innerHTML='<div class="empty">지도를 불러올 수 없습니다(인터넷 연결 필요)</div>'; }
+
+var curRegion='전체', curPage=1, PER=8, markers={};
+
+function filtered(){
+  return curRegion==='전체' ? DATA.liveItems
+    : DATA.liveItems.filter(function(x){return x.region===curRegion;});
 }
 
-function renderNfdsSummary() {
-  document.getElementById('nfdsSummaryLine').innerHTML =
-    `국민안전24 ${nfdsSummary.total}건 중 <b>${nfdsSummary.matched}건</b>이 NFDS 공식기록과 일치(±30분·동읍면 기준) · NFDS 미확인 ${nfdsSummary.hidden}건은 기본적으로 숨김`
-    + ` <span class="toggle-all" onclick="toggleShowAll()">${showAll ? '일치 항목만 보기' : '전체 보기 (미확인 포함)'}</span>`;
-}
-
-function toggleShowAll() {
-  showAll = !showAll;
-  selectedRegion = '전체';
-  currentPage = 1;
-  renderAll();
-}
-
-function getBaseItems() {
-  return showAll ? liveItems : liveItems.filter(i => i.match);
-}
-
-function getFilteredItems() {
-  let base = getBaseItems();
-  if (selectedRegion !== '전체') base = base.filter(i => i.region === selectedRegion);
-  return base;
-}
-
-function renderTagBar() {
-  const base = getBaseItems();
-  const counts = {};
-  base.forEach(i => { counts[i.region] = (counts[i.region] || 0) + 1; });
-  const regions = Object.keys(counts).sort((a,b) => counts[b]-counts[a]);
-  let html = `<span class="tag ${selectedRegion==='전체'?'active':''}" onclick="selectRegion('전체')">전체(${base.length})</span>`;
-  regions.forEach(r => {
-    html += `<span class="tag ${selectedRegion===r?'active':''}" onclick="selectRegion('${r}')">${r}(${counts[r]})</span>`;
+function renderTags(){
+  var el=document.getElementById('tags'), h='';
+  h+='<button class="tag'+(curRegion==='전체'?' on':'')+'" data-r="전체">전체('+DATA.liveItems.length+')</button>';
+  DATA.regions.forEach(function(r){
+    h+='<button class="tag'+(curRegion===r.name?' on':'')+'" data-r="'+esc(r.name)+'">'+esc(r.name)+'('+r.count+')</button>';
   });
-  document.getElementById('tagBar').innerHTML = html;
+  el.innerHTML=h;
+  [].forEach.call(el.querySelectorAll('.tag'),function(b){
+    b.onclick=function(){ curRegion=b.getAttribute('data-r'); curPage=1; renderAll(); };
+  });
 }
 
-function selectRegion(r) {
-  selectedRegion = r;
-  currentPage = 1;
-  renderAll();
-}
-
-function renderList() {
-  const filtered = getFilteredItems();
-  const countLabel = selectedRegion === '전체' ? `전체 ${filtered.length}건` : `${selectedRegion} ${filtered.length}건`;
-  document.getElementById('listCount').textContent = countLabel;
-
-  if (filtered.length === 0) {
-    document.getElementById('fireList').innerHTML = '<div class="empty-msg">해당 지역의 화재 정보가 없습니다.</div>';
-    document.getElementById('pagination').innerHTML = '';
-    return;
+function renderList(){
+  var arr=filtered();
+  document.getElementById('lhd').textContent =
+    (curRegion==='전체'?'전체':curRegion)+' '+arr.length+'건';
+  var box=document.getElementById('list'), pg=document.getElementById('pager');
+  if(!arr.length){ box.innerHTML='<div class="empty">해당 지역의 화재 정보가 없습니다</div>'; pg.innerHTML=''; return; }
+  var pages=Math.ceil(arr.length/PER);
+  if(curPage>pages) curPage=pages;
+  var slice=arr.slice((curPage-1)*PER, curPage*PER);
+  box.innerHTML = slice.map(function(it){
+    var idx=DATA.liveItems.indexOf(it);
+    var b = it.match ? '<span class="bdg ok">NFDS 일치'+(it.nfds_time?' ('+esc(it.nfds_time)+')':'')+'</span>'
+                     : '<span class="bdg no">NFDS 미확인</span>';
+    return '<div class="item" data-i="'+idx+'"><div class="tp">'+esc(it.type)+'</div>'+
+      '<div class="lc">'+esc(it.loc)+'</div><div class="mt"><span class="tm">'+esc(it.time)+'</span>'+b+'</div></div>';
+  }).join('');
+  [].forEach.call(box.querySelectorAll('.item'),function(d){
+    d.onclick=function(){
+      var it=DATA.liveItems[+d.getAttribute('data-i')];
+      if(mapOK && it.lat!=null){ map.flyTo([it.lat,it.lng],15);
+        var mk=markers[it.lat+','+it.lng+','+it.time]; if(mk) mk.openPopup(); }
+    };
+  });
+  /* pager */
+  var h='';
+  h+='<button class="pg'+(curPage===1?' dis':'')+'" data-p="'+(curPage-1)+'">&lsaquo;</button>';
+  var list=[];
+  for(var i=1;i<=pages;i++){
+    if(i===1||i===pages||Math.abs(i-curPage)<=1) list.push(i);
+    else if(list[list.length-1]!=='...') list.push('...');
   }
-
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  if (currentPage > totalPages) currentPage = totalPages;
-  const startIdx = (currentPage - 1) * PAGE_SIZE;
-  const pageItems = filtered.slice(startIdx, startIdx + PAGE_SIZE);
-
-  let html = '';
-  pageItems.forEach((item, idx) => {
-    const globalIdx = startIdx + idx;
-    const badge = item.match
-      ? `<span class="nfds-badge ok">NFDS 일치 (${item.nfds_time})</span>`
-      : `<span class="nfds-badge no">NFDS 미확인</span>`;
-    html += `<div class="fire-item" onclick="focusItem(${globalIdx})">
-      <div class="ftype">${item.type}</div>
-      <div class="floc">${item.loc}</div>
-      <div class="fmeta"><span>${item.time}</span>${badge}</div>
-    </div>`;
+  list.forEach(function(p){
+    h += (p==='...') ? '<span class="dots">…</span>'
+      : '<button class="pg'+(p===curPage?' on':'')+'" data-p="'+p+'">'+p+'</button>';
   });
-  document.getElementById('fireList').innerHTML = html;
-
-  // pagination buttons
-  let pag = '';
-  const addBtn = (p) => pag += `<span class="page-btn ${p===currentPage?'active':''}" onclick="goPage(${p})">${p}</span>`;
-  if (currentPage > 1) pag += `<span class="page-btn" onclick="goPage(${currentPage-1})">‹</span>`;
-  let pages = [];
-  pages.push(1);
-  for (let p = currentPage-2; p <= currentPage+2; p++) if (p>1 && p<totalPages) pages.push(p);
-  if (totalPages>1) pages.push(totalPages);
-  pages = [...new Set(pages)].sort((a,b)=>a-b);
-  let prev = 0;
-  pages.forEach(p => {
-    if (p - prev > 1) pag += `<span class="page-btn dots">…</span>`;
-    addBtn(p);
-    prev = p;
+  h+='<button class="pg'+(curPage===pages?' dis':'')+'" data-p="'+(curPage+1)+'">&rsaquo;</button>';
+  pg.innerHTML=h;
+  [].forEach.call(pg.querySelectorAll('.pg'),function(b){
+    b.onclick=function(){ var p=+b.getAttribute('data-p');
+      if(p<1||p>pages||p===curPage) return; curPage=p; renderList(); };
   });
-  if (currentPage < totalPages) pag += `<span class="page-btn" onclick="goPage(${currentPage+1})">›</span>`;
-  document.getElementById('pagination').innerHTML = pag;
-
-  window.__currentFilteredForMap = filtered;
 }
 
-function goPage(p) {
-  currentPage = p;
-  renderList();
+function renderMap(){
+  if(!mapOK) return;
+  layer.clearLayers(); markers={};
+  var pts=[];
+  filtered().forEach(function(it){
+    if(it.lat==null) return;
+    var m=L.circleMarker([it.lat,it.lng],{radius:8,color:'#e5342a',weight:2,
+      fillColor:'#e5342a',fillOpacity:.62}).addTo(layer);
+    m.bindPopup('<b>'+esc(it.type)+'</b><br>'+esc(it.loc)+'<br><span style="color:#e5342a">'+esc(it.time)+'</span>');
+    markers[it.lat+','+it.lng+','+it.time]=m;
+    pts.push([it.lat,it.lng]);
+  });
+  if(pts.length===1) map.setView(pts[0],12);
+  else if(pts.length>1) map.fitBounds(pts,{padding:[36,36]});
 }
 
-function renderMap() {
-  if (!map) {
-    try {
-      map = L.map('map');
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 18,
-        attribution: '&copy; OpenStreetMap'
-      }).addTo(map);
-      markerLayer = L.layerGroup().addTo(map);
-    } catch (e) {
-      document.getElementById('map').innerHTML = '<div class="empty-msg">지도를 불러올 수 없습니다 (오프라인).</div>';
-      return;
-    }
+function renderAll(){ renderTags(); renderList(); renderMap(); }
+
+/* news */
+(function(){
+  var el=document.getElementById('news');
+  if(!DATA.news.length){ el.innerHTML='<div class="empty">최근 24시간 내 수집된 건물화재 뉴스가 없습니다</div>'; return; }
+  el.innerHTML=DATA.news.map(function(n){
+    return '<div class="nw"><a href="'+esc(n.url)+'" target="_blank" rel="noopener">'+esc(n.title)+'</a>'+
+      (n.desc?'<div class="dz">'+esc(n.desc)+'</div>':'')+
+      '<div class="mz"><span class="sbz">'+esc(n.source||'Daum')+(n.src?' · '+esc(n.src):'')+'</span>'+
+      '<span class="tm">'+esc(n.time)+'</span></div></div>';
+  }).join('');
+})();
+
+/* sido */
+(function(){
+  var sel=document.getElementById('sel');
+  sel.innerHTML=DATA.sido.map(function(s,i){
+    return '<option value="'+i+'">'+esc(s.short)+(i?' ('+esc(s.name)+')':'')+'</option>';}).join('');
+  function draw(){
+    var s=DATA.sido[+sel.value];
+    document.getElementById('sR').innerHTML=nf(s.rcpt)+'<small>건</small>';
+    document.getElementById('sP').innerHTML=nf(s.prog)+'<small>건</small>';
+    var av=DATA.lifePrptAvailable;
+    document.getElementById('sL').innerHTML=av?nf(s.life)+'<small>명</small>':'미집계';
+    document.getElementById('sD').innerHTML=av?nf(s.prpt)+'<small>천원</small>':'미집계';
+    document.getElementById('skL').className='sk'+(av?'':' na');
+    document.getElementById('skD').className='sk'+(av?'':' na');
   }
-  markerLayer.clearLayers();
-  const items = getFilteredItems().filter(i => i.lat && i.lng);
-  const bounds = [];
-  items.forEach((item, idx) => {
-    const color = item.match ? '#e8492c' : '#9a9a9a';
-    const marker = L.circleMarker([item.lat, item.lng], {
-      radius: 7, color: color, fillColor: color, fillOpacity: 0.75, weight: 1.5
-    }).addTo(markerLayer);
-    marker.bindPopup(`<b>${item.type}</b><br>${item.loc}<br>${item.time}`);
-    bounds.push([item.lat, item.lng]);
-  });
-  if (bounds.length > 0) {
-    map.fitBounds(bounds, { padding: [30,30] });
-  } else {
-    map.setView([36.5, 127.8], 7);
-  }
-}
+  sel.onchange=draw; sel.value='0'; draw();
+})();
 
-function focusItem(globalIdx) {
-  const filtered = window.__currentFilteredForMap || getFilteredItems();
-  const item = filtered[globalIdx];
-  if (!item || !map || !item.lat) return;
-  map.flyTo([item.lat, item.lng], 15);
-  L.popup().setLatLng([item.lat, item.lng]).setContent(`<b>${item.type}</b><br>${item.loc}<br>${item.time}`).openOn(map);
-}
+/* footer */
+document.getElementById('foot').innerHTML =
+ '<b>수집 안내</b><br>'+
+ '· 실시간 목록은 <b>차량 단독 화재를 제외</b>했습니다(건물 키워드가 함께 있으면 유지).<br>'+
+ '· 상단 <b>지역 태그</b>를 누르면 목록·지도가 해당 시도로 필터링됩니다.<br>'+
+ '· <b>NFDS 일일화재현황(B14) 대조</b>: 동/읍/면 일치 + 발생시각 ±30분 기준. 이번 회차는 B14가 자정 리셋 직후로 0건이어서 전 항목 <b>미확인</b>입니다.<br>'+
+ '· 23~24시 발생분은 익일 목록으로 넘어가 이 스냅샷에서 빠질 수 있습니다.<br>'+
+ '· 지도는 인터넷 연결이 필요합니다(Leaflet · OpenStreetMap).<br>'+
+ '· 구글 뉴스는 이번 회차 수집에 실패해 <b>Daum 뉴스만</b> 반영했습니다.<br>'+
+ '· 시도별 인명·재산 피해는 소방청 API가 당일치를 아직 집계하지 않아(0건 응답) <b>미집계</b>로 표기했습니다.';
 
-function renderNews() {
-  let html = '';
-  newsItems.forEach(n => {
-    html += `<div class="news-item">
-      <a href="${n.url}" target="_blank" rel="noopener">${n.title}</a>
-      <div class="news-meta"><span class="src-badge">${n.source}</span><span class="news-time">${n.time}</span></div>
-    </div>`;
-  });
-  document.getElementById('newsList').innerHTML = html || '<div class="empty-msg">수집된 뉴스가 없습니다.</div>';
-}
-
-function renderSidoSection() {
-  const select = document.getElementById('sidoSelect');
-  let opts = `<option value="__전국__">전국</option>`;
-  sidoData.sido.forEach(s => { opts += `<option value="${s.label}">${s.label}</option>`; });
-  select.innerHTML = opts;
-  select.addEventListener('change', updateSidoKpi);
-  updateSidoKpi();
-}
-
-function updateSidoKpi() {
-  const val = document.getElementById('sidoSelect').value;
-  let data;
-  if (val === '__전국__') {
-    data = sidoData.total;
-  } else {
-    data = sidoData.sido.find(s => s.label === val) || {prog:0, life:0, prpt:0};
-  }
-  document.getElementById('sidoProg').textContent = fmtNum(data.prog) + '건';
-  document.getElementById('sidoLife').textContent = fmtNum(data.life) + '명';
-  document.getElementById('sidoPrpt').textContent = fmtNum(data.prpt) + '천원';
-}
-
-function renderAll() {
-  renderNfdsSummary();
-  renderTagBar();
-  renderList();
-  renderMap();
-}
-
-renderBanner();
 renderAll();
-renderNews();
-renderSidoSection();
 </script>
 </body>
 </html>
